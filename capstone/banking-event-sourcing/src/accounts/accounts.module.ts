@@ -5,6 +5,7 @@ import { DepositMoneyHandler } from './application/commands/deposit-money.comman
 import { OpenAccountHandler } from './application/commands/open-account.command.js';
 import { GetAccountEventHistoryHandler } from './application/queries/get-account-event-history.query.js';
 import { GetAccountStateHandler } from './application/queries/get-account-state.query.js';
+import { GetDepositDetailsHandler } from './application/queries/get-deposit-details.query.js';
 import { ACCOUNT_EVENTS } from './domain/account.events.js';
 import { AccountRepository } from './infrastructure/account.repository.js';
 
@@ -17,6 +18,7 @@ import { AccountRepository } from './infrastructure/account.repository.js';
     DepositMoneyHandler,
     GetAccountStateHandler,
     GetAccountEventHistoryHandler,
+    GetDepositDetailsHandler,
   ],
 })
 export class AccountsModule {}

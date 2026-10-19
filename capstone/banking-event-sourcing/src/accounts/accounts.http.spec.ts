@@ -127,6 +127,45 @@ describe('Accounts HTTP flow (in-memory event store)', () => {
 
   it('returns 400 for a malformed account id', async () => {
     await http().get('/accounts/not-a-uuid').expect(400);
+    await http().get('/accounts/not-a-uuid/deposits/op-1').expect(400);
+  });
+
+  describe('GET /accounts/:id/deposits/:operationId', () => {
+    it('returns the deposit recorded under that operationId', async () => {
+      const accountId = await openAccount();
+      await http()
+        .post(`/accounts/${accountId}/deposits`)
+        .send({ amountMinor: 500, operationId: 'op-1' })
+        .expect(200);
+      await http()
+        .post(`/accounts/${accountId}/deposits`)
+        .send({ amountMinor: 1050, operationId: 'op-2' })
+        .expect(200);
+
+      const res = await http().get(`/accounts/${accountId}/deposits/op-2`).expect(200);
+
+      expect(res.body).toEqual({ accountId, operationId: 'op-2', amountMinor: 1050 });
+    });
+
+    it('returns 404 ACCOUNT_NOT_FOUND for an unknown account', async () => {
+      const unknown = '00000000-0000-4000-8000-000000000000';
+
+      const res = await http().get(`/accounts/${unknown}/deposits/op-1`).expect(404);
+
+      expect(res.body.code).toBe('ACCOUNT_NOT_FOUND');
+    });
+
+    it('returns 404 DEPOSIT_NOT_FOUND for an unknown operationId', async () => {
+      const accountId = await openAccount();
+      await http()
+        .post(`/accounts/${accountId}/deposits`)
+        .send({ amountMinor: 500, operationId: 'op-1' })
+        .expect(200);
+
+      const res = await http().get(`/accounts/${accountId}/deposits/op-missing`).expect(404);
+
+      expect(res.body).toMatchObject({ statusCode: 404, code: 'DEPOSIT_NOT_FOUND' });
+    });
   });
 
   it('rejects an invalid open-account body (400)', async () => {

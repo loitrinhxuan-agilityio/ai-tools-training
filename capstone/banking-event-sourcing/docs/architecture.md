@@ -9,6 +9,7 @@
 | `AccountRepository` | `src/accounts/infrastructure/account.repository.ts` | Load = replay the `account-<id>` stream. Save = append uncommitted events with `expectedVersion = committedVersion`. Maps Ocoda's version conflict to `ConcurrencyConflictError`. |
 | Command handlers | `src/accounts/application/commands/` | `OpenAccount`, `DepositMoney`: load the aggregate, call one decision, save, return a small result. |
 | Query handlers | `src/accounts/application/queries/` | `GetAccountState` (replay) and `GetAccountEventHistory` (`getEnvelopes`, the source of truth). |
+| `GetDepositDetails` query | `src/accounts/application/queries/get-deposit-details.query.ts` | Scans the account stream (`getEvents`) for the `MoneyDeposited` with a given `operationId`. No events → `AccountNotFoundError`; events but no match → `DepositNotFoundError` (404 `DEPOSIT_NOT_FOUND`). Linear in stream length until Phase 3 adds a projection. |
 | `AccountsController` | `src/accounts/api/` | HTTP → commands/queries; DTO validation via `ValidationPipe`. |
 | `DomainExceptionFilter` | `src/shared/domain-exception.filter.ts` | Error `code` → HTTP status; anything else goes to Nest's default handling. |
 | `EventStoreInitializer` | `src/event-store/` | Calls `ensureCollection()` at bootstrap so a fresh DB gets the `events` table. |

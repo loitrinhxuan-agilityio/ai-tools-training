@@ -16,6 +16,7 @@ export type DomainErrorCode =
   | 'INVALID_CURRENCY'
   | 'INVALID_OWNER_NAME'
   | 'ACCOUNT_NOT_FOUND'
+  | 'DEPOSIT_NOT_FOUND'
   | 'OPERATION_ID_REUSED'
   | 'CONCURRENCY_CONFLICT';
 
@@ -36,6 +37,15 @@ export class AccountNotFoundError extends DomainError {
 
   constructor(accountId: string) {
     super(`Account ${accountId} does not exist`);
+  }
+}
+
+/** The account exists but has no deposit with this operationId. */
+export class DepositNotFoundError extends DomainError {
+  readonly code = 'DEPOSIT_NOT_FOUND';
+
+  constructor(accountId: string, operationId: string) {
+    super(`Account ${accountId} has no deposit with operation ${operationId}`);
   }
 }
 

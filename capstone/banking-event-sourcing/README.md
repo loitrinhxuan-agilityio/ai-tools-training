@@ -65,12 +65,17 @@ curl -s localhost:3000/accounts/<uuid>
 
 # Event history, straight from the event store
 curl -s localhost:3000/accounts/<uuid>/events
+
+# One deposit, found by its operationId in the account's stream
+curl -s localhost:3000/accounts/<uuid>/deposits/dep-1
+# → {"accountId":"<uuid>","operationId":"dep-1","amountMinor":2500}
 ```
 
 | Error | Status | `code` |
 |---|---|---|
 | Invalid body / id | 400 | (validation message) / `INVALID_AMOUNT`, `INVALID_ID` |
 | Unknown account | 404 | `ACCOUNT_NOT_FOUND` |
+| Account exists but has no deposit with that `operationId` | 404 | `DEPOSIT_NOT_FOUND` |
 | `operationId` reused with another amount | 409 | `OPERATION_ID_REUSED` |
 | Concurrent write to the same account | 409 | `CONCURRENCY_CONFLICT` |
 

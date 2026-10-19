@@ -18,6 +18,10 @@ import {
   GetAccountEventHistoryQuery,
 } from '../application/queries/get-account-event-history.query.js';
 import {
+  type DepositDetailsDto,
+  GetDepositDetailsQuery,
+} from '../application/queries/get-deposit-details.query.js';
+import {
   type AccountStateDto,
   GetAccountStateQuery,
 } from '../application/queries/get-account-state.query.js';
@@ -50,6 +54,14 @@ export class AccountsController {
     return this.commandBus.execute(
       new DepositMoneyCommand(accountId, body.amountMinor, body.operationId),
     );
+  }
+
+  @Get(':id/deposits/:operationId')
+  getDeposit(
+    @Param('id', ParseUUIDPipe) accountId: string,
+    @Param('operationId') operationId: string,
+  ): Promise<DepositDetailsDto> {
+    return this.queryBus.execute(new GetDepositDetailsQuery(accountId, operationId));
   }
 
   @Get(':id')
