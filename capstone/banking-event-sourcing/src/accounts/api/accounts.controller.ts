@@ -25,7 +25,7 @@ import {
   type AccountStateDto,
   GetAccountStateQuery,
 } from '../application/queries/get-account-state.query.js';
-import { DepositMoneyDto, OpenAccountDto } from './account.dto.js';
+import { DepositLookupParams, DepositMoneyDto, OpenAccountDto } from './account.dto.js';
 
 const DEFAULT_CURRENCY = 'EUR';
 
@@ -57,11 +57,10 @@ export class AccountsController {
   }
 
   @Get(':id/deposits/:operationId')
-  getDeposit(
-    @Param('id', ParseUUIDPipe) accountId: string,
-    @Param('operationId') operationId: string,
-  ): Promise<DepositDetailsDto> {
-    return this.queryBus.execute(new GetDepositDetailsQuery(accountId, operationId));
+  getDeposit(@Param() params: DepositLookupParams): Promise<DepositDetailsDto> {
+    return this.queryBus.execute(
+      new GetDepositDetailsQuery(params.id, params.operationId),
+    );
   }
 
   @Get(':id')

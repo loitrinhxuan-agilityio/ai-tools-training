@@ -166,6 +166,41 @@ describe('Accounts HTTP flow (in-memory event store)', () => {
 
       expect(res.body).toMatchObject({ statusCode: 404, code: 'DEPOSIT_NOT_FOUND' });
     });
+
+    it('accepts an operationId of exactly 100 characters', async () => {
+      const accountId = await openAccount();
+      const operationId = 'x'.repeat(100);
+      await http()
+        .post(`/accounts/${accountId}/deposits`)
+        .send({ amountMinor: 500, operationId })
+        .expect(200);
+
+      const res = await http().get(`/accounts/${accountId}/deposits/${operationId}`).expect(200);
+
+      expect(res.body).toEqual({ accountId, operationId, amountMinor: 500 });
+    });
+
+    it('returns 400 for an operationId longer than 100 characters', async () => {
+      const accountId = await openAccount();
+
+      const res = await http()
+        .get(`/accounts/${accountId}/deposits/${'x'.repeat(101)}`)
+        .expect(400);
+
+      expect(res.body).toEqual({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: ['operationId must be shorter than or equal to 100 characters'],
+      });
+    });
+
+    it('does not match the route when operationId is empty (framework 404, not DEPOSIT_NOT_FOUND)', async () => {
+      const accountId = await openAccount();
+
+      const res = await http().get(`/accounts/${accountId}/deposits/`).expect(404);
+
+      expect(res.body.code).toBeUndefined();
+    });
   });
 
   it('rejects an invalid open-account body (400)', async () => {

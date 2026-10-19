@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
@@ -26,6 +27,18 @@ export class DepositMoneyDto {
   amountMinor: number;
 
   /** Client-generated idempotency key; resending it is a safe no-op. */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  operationId: string;
+}
+
+/** Path parameters of GET /accounts/:id/deposits/:operationId. */
+export class DepositLookupParams {
+  @IsUUID()
+  id: string;
+
+  /** Same rule as `DepositMoneyDto.operationId`, so only storable IDs are looked up. */
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
