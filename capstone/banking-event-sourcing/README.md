@@ -4,9 +4,9 @@ A learning project: a small banking domain built with **Event Sourcing** and
 **CQRS** on NestJS 12 and [`@ocoda/event-sourcing`](https://ocoda.github.io/event-sourcing) 4.1,
 persisted in PostgreSQL 17. Not a production banking system.
 
-**Status: Phase 2.** You can open accounts, deposit money, view event history,
-and rebuild account state by replay. Withdrawals, transfers and projected read
-models are Phase 3. See [docs/architecture.md](docs/architecture.md) and
+**Status: Phase 2 plus withdrawals.** You can open accounts, deposit and withdraw
+money, view event history, and rebuild account state by replay. Transfers and
+projected read models are Phase 3. See [docs/architecture.md](docs/architecture.md) and
 [docs/learning-log.md](docs/learning-log.md).
 
 ## Requirements
@@ -43,10 +43,12 @@ npm run lint
 npm run build
 ```
 
-## API (Phase 2)
+## API
 
 Amounts are **integer minor units** (`1050` = 10.50). `operationId` is a
 client-generated idempotency key: resending the same request is a safe no-op.
+A key belongs to one operation type: a withdrawal cannot reuse a deposit's key,
+or the reverse (409 `OPERATION_ID_REUSED`).
 
 ```bash
 # Open an account (currency defaults to EUR)
@@ -59,6 +61,13 @@ curl -s -X POST localhost:3000/accounts/<uuid>/deposits \
   -H 'content-type: application/json' -d '{"amountMinor":2500,"operationId":"dep-1"}'
 # → {"accountId":"<uuid>","operationId":"dep-1","status":"deposited","balanceMinor":2500}
 #   (sending it again returns "status":"duplicate" and stores nothing)
+
+# Withdraw (allowed up to the full balance)
+curl -s -X POST localhost:3000/accounts/<uuid>/withdrawals \
+  -H 'content-type: application/json' -d '{"amountMinor":1000,"operationId":"wd-1"}'
+# → {"accountId":"<uuid>","operationId":"wd-1","status":"withdrawn","balanceMinor":1500}
+#   (a retry returns "status":"duplicate"; an amount above the balance returns 422
+#   INSUFFICIENT_FUNDS and stores nothing)
 
 # Current state, rebuilt by replaying the stream
 curl -s localhost:3000/accounts/<uuid>
@@ -76,8 +85,9 @@ curl -s localhost:3000/accounts/<uuid>/deposits/dep-1
 | Invalid body / id | 400 | (validation message) / `INVALID_AMOUNT`, `INVALID_ID` |
 | Unknown account | 404 | `ACCOUNT_NOT_FOUND` |
 | Account exists but has no deposit with that `operationId` | 404 | `DEPOSIT_NOT_FOUND` |
-| `operationId` reused with another amount | 409 | `OPERATION_ID_REUSED` |
-| Concurrent write to the same account | 409 | `CONCURRENCY_CONFLICT` |
+| Withdrawal above the balance | 422 | `INSUFFICIENT_FUNDS` |
+| `operationId` reused with another amount, or with another operation type | 409 | `OPERATION_ID_REUSED` |
+| Concurrent write to the same account (the losing writer retries) | 409 | `CONCURRENCY_CONFLICT` |
 
 Inspect the raw event store:
 

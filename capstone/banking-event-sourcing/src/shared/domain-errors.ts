@@ -18,6 +18,7 @@ export type DomainErrorCode =
   | 'ACCOUNT_NOT_FOUND'
   | 'DEPOSIT_NOT_FOUND'
   | 'OPERATION_ID_REUSED'
+  | 'INSUFFICIENT_FUNDS'
   | 'CONCURRENCY_CONFLICT';
 
 export class InvalidAmountError extends DomainError {
@@ -55,6 +56,17 @@ export class OperationIdReusedError extends DomainError {
 
   constructor(operationId: string) {
     super(`Operation ${operationId} was already used for a different request`);
+  }
+}
+
+/** The withdrawal is larger than the current balance. Nothing is written. */
+export class InsufficientFundsError extends DomainError {
+  readonly code = 'INSUFFICIENT_FUNDS';
+
+  constructor(accountId: string, requestedMinor: number, balanceMinor: number) {
+    super(
+      `Account ${accountId} has ${balanceMinor} minor units, cannot withdraw ${requestedMinor}`,
+    );
   }
 }
 

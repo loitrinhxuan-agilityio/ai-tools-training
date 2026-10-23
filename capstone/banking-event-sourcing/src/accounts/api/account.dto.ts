@@ -33,6 +33,19 @@ export class DepositMoneyDto {
   operationId: string;
 }
 
+export class WithdrawMoneyDto {
+  /** Integer minor units, e.g. 1050 = 10.50. */
+  @IsInt()
+  @IsPositive()
+  amountMinor: number;
+
+  /** Client-generated idempotency key; resending it is a safe no-op. */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  operationId: string;
+}
+
 /** Path parameters of GET /accounts/:id/deposits/:operationId. */
 export class DepositLookupParams {
   @IsUUID()
