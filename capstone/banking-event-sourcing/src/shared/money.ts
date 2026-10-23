@@ -22,6 +22,19 @@ export function addMinor(a: number, b: number): number {
   return sum;
 }
 
+/**
+ * Subtracts `b` from `a` during replay. A negative result means stored history
+ * is already inconsistent. That is a server-side invariant failure, not bad
+ * client input, so it is deliberately not a DomainError (it maps to 500).
+ */
+export function subtractMinor(a: number, b: number): number {
+  const difference = a - b;
+  if (!Number.isSafeInteger(difference) || difference < 0) {
+    throw new Error(`Balance invariant violated: cannot subtract ${b} from ${a}`);
+  }
+  return difference;
+}
+
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 
 export function assertCurrencyCode(currency: string): void {

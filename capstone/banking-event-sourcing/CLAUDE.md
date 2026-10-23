@@ -3,8 +3,8 @@
 ## Project
 Learning project, not production banking. NestJS 12 (ESM), TypeScript, `@ocoda/event-sourcing` 4.1, PostgreSQL 17.
 
-- Implemented: account opening, deposits, event replay, event history (Phase 2).
-- Planned: withdrawals, transfers, read-model projections (Phase 3).
+- Implemented: account opening, deposits, withdrawals, event replay, event history.
+- Planned: transfers, read-model projections (Phase 3).
 - Details: `docs/architecture.md`, `docs/learning-log.md`.
 
 ## Build and Run
@@ -33,7 +33,7 @@ Learning project, not production banking. NestJS 12 (ESM), TypeScript, `@ocoda/e
 - Decision methods validate business rules and call `applyEvent`; only `@EventHandler` methods change aggregate state.
 - Events are immutable historical facts. Never rename existing event names or change stored payloads; use an explicit new event or migration strategy when evolution is required.
 - `AccountRepository` rebuilds state by replaying events and appends using `expectedVersion = committedVersion`. Handle conflicts as `ConcurrencyConflictError` (HTTP 409).
-- `operationId` provides deposit idempotency and is rebuilt on replay. Reusing an ID with a different amount must raise `OperationIdReusedError`.
+- `operationId` provides idempotency for deposits and withdrawals and is rebuilt on replay. Reusing an ID with a different amount, or with a different operation type, must raise `OperationIdReusedError`. Withdrawals check idempotency before funds.
 - Validate before applying events. Invalid commands must not persist events.
 - Use Ocoda's `EventStore` and configured PostgreSQL driver; do not introduce a competing event store.
 - `GetAccountState` currently replays the stream; read-model projections are not yet implemented.

@@ -26,4 +26,18 @@ export class MoneyDepositedEvent implements IEvent {
   ) {}
 }
 
-export const ACCOUNT_EVENTS = [AccountOpenedEvent, MoneyDepositedEvent];
+@Event('money-withdrawn')
+export class MoneyWithdrawnEvent implements IEvent {
+  constructor(
+    public readonly accountId: string,
+    public readonly amountMinor: number,
+    /** Client-supplied idempotency key for this withdrawal. */
+    public readonly operationId: string,
+  ) {}
+}
+
+export const ACCOUNT_EVENTS = [
+  AccountOpenedEvent,
+  MoneyDepositedEvent,
+  MoneyWithdrawnEvent,
+];

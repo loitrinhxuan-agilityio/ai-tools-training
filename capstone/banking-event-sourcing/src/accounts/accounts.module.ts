@@ -3,6 +3,7 @@ import { EventSourcingModule } from '@ocoda/event-sourcing';
 import { AccountsController } from './api/accounts.controller.js';
 import { DepositMoneyHandler } from './application/commands/deposit-money.command.js';
 import { OpenAccountHandler } from './application/commands/open-account.command.js';
+import { WithdrawMoneyHandler } from './application/commands/withdraw-money.command.js';
 import { GetAccountEventHistoryHandler } from './application/queries/get-account-event-history.query.js';
 import { GetAccountStateHandler } from './application/queries/get-account-state.query.js';
 import { GetDepositDetailsHandler } from './application/queries/get-deposit-details.query.js';
@@ -16,6 +17,7 @@ import { AccountRepository } from './infrastructure/account.repository.js';
     AccountRepository,
     OpenAccountHandler,
     DepositMoneyHandler,
+    WithdrawMoneyHandler,
     GetAccountStateHandler,
     GetAccountEventHistoryHandler,
     GetDepositDetailsHandler,

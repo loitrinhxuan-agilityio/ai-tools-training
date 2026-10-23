@@ -25,7 +25,16 @@ import {
   type AccountStateDto,
   GetAccountStateQuery,
 } from '../application/queries/get-account-state.query.js';
-import { DepositLookupParams, DepositMoneyDto, OpenAccountDto } from './account.dto.js';
+import {
+  type WithdrawMoneyResult,
+  WithdrawMoneyCommand,
+} from '../application/commands/withdraw-money.command.js';
+import {
+  DepositLookupParams,
+  DepositMoneyDto,
+  OpenAccountDto,
+  WithdrawMoneyDto,
+} from './account.dto.js';
 
 const DEFAULT_CURRENCY = 'EUR';
 
@@ -53,6 +62,17 @@ export class AccountsController {
   ): Promise<DepositMoneyResult> {
     return this.commandBus.execute(
       new DepositMoneyCommand(accountId, body.amountMinor, body.operationId),
+    );
+  }
+
+  @Post(':id/withdrawals')
+  @HttpCode(200)
+  withdraw(
+    @Param('id', ParseUUIDPipe) accountId: string,
+    @Body() body: WithdrawMoneyDto,
+  ): Promise<WithdrawMoneyResult> {
+    return this.commandBus.execute(
+      new WithdrawMoneyCommand(accountId, body.amountMinor, body.operationId),
     );
   }
 
