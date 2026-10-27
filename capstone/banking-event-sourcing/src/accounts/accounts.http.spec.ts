@@ -203,6 +203,157 @@ describe('Accounts HTTP flow (in-memory event store)', () => {
     });
   });
 
+  describe('POST /accounts/:id/withdrawals', () => {
+    async function openAndDeposit(amountMinor: number): Promise<string> {
+      const accountId = await openAccount();
+      await http()
+        .post(`/accounts/${accountId}/deposits`)
+        .send({ amountMinor, operationId: 'dep-1' })
+        .expect(200);
+      return accountId;
+    }
+
+    it('withdraws money and returns the new balance', async () => {
+      const accountId = await openAndDeposit(1000);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 400, operationId: 'wd-1' })
+        .expect(200);
+
+      expect(res.body).toEqual({
+        accountId,
+        operationId: 'wd-1',
+        status: 'withdrawn',
+        balanceMinor: 600,
+      });
+    });
+
+    it('allows withdrawing the full balance', async () => {
+      const accountId = await openAndDeposit(1000);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 1000, operationId: 'wd-1' })
+        .expect(200);
+
+      expect(res.body).toMatchObject({ status: 'withdrawn', balanceMinor: 0 });
+    });
+
+    it('rejects an amount above the balance with 422 and writes no event', async () => {
+      const accountId = await openAndDeposit(1000);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 1001, operationId: 'wd-1' })
+        .expect(422);
+      expect(res.body).toMatchObject({ statusCode: 422, code: 'INSUFFICIENT_FUNDS' });
+
+      const state = await http().get(`/accounts/${accountId}`).expect(200);
+      expect(state.body.balanceMinor).toBe(1000);
+      const events = await http().get(`/accounts/${accountId}/events`).expect(200);
+      expect(events.body.map((e: { event: string }) => e.event)).toEqual([
+        'account-opened',
+        'money-deposited',
+      ]);
+    });
+
+    it('makes a retried withdrawal a no-op even after the balance dropped', async () => {
+      const accountId = await openAndDeposit(1000);
+      const body = { amountMinor: 900, operationId: 'wd-1' };
+
+      await http().post(`/accounts/${accountId}/withdrawals`).send(body).expect(200);
+      const retry = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send(body)
+        .expect(200);
+
+      expect(retry.body).toMatchObject({ status: 'duplicate', balanceMinor: 100 });
+      const events = await http().get(`/accounts/${accountId}/events`).expect(200);
+      expect(events.body).toHaveLength(3);
+    });
+
+    it('rejects reuse of a withdrawal operationId with a different amount (409)', async () => {
+      const accountId = await openAndDeposit(1000);
+      await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 300, operationId: 'wd-1' })
+        .expect(200);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 200, operationId: 'wd-1' })
+        .expect(409);
+      expect(res.body.code).toBe('OPERATION_ID_REUSED');
+    });
+
+    it('rejects a deposit key reused by a withdrawal (409), leaving the balance unchanged', async () => {
+      const accountId = await openAndDeposit(1000);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 1000, operationId: 'dep-1' })
+        .expect(409);
+      expect(res.body.code).toBe('OPERATION_ID_REUSED');
+
+      const state = await http().get(`/accounts/${accountId}`).expect(200);
+      expect(state.body.balanceMinor).toBe(1000);
+    });
+
+    it('returns 409, not 422, for a reused key whose amount exceeds the balance', async () => {
+      const accountId = await openAndDeposit(1000);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 5000, operationId: 'dep-1' })
+        .expect(409);
+      expect(res.body.code).toBe('OPERATION_ID_REUSED');
+    });
+
+    it('rejects a withdrawal reusing a withdrawal key with a deposit (409)', async () => {
+      const accountId = await openAndDeposit(1000);
+      await http()
+        .post(`/accounts/${accountId}/withdrawals`)
+        .send({ amountMinor: 300, operationId: 'wd-1' })
+        .expect(200);
+
+      const res = await http()
+        .post(`/accounts/${accountId}/deposits`)
+        .send({ amountMinor: 300, operationId: 'wd-1' })
+        .expect(409);
+      expect(res.body.code).toBe('OPERATION_ID_REUSED');
+    });
+
+    it.each([
+      [{ amountMinor: 0, operationId: 'op' }],
+      [{ amountMinor: -5, operationId: 'op' }],
+      [{ amountMinor: 10.5, operationId: 'op' }],
+      [{ amountMinor: '100', operationId: 'op' }],
+      [{ amountMinor: 100 }],
+      [{ amountMinor: 100, operationId: 'op', extra: true }],
+    ])('rejects invalid withdrawal body %j (400)', async (body) => {
+      const accountId = await openAndDeposit(1000);
+      await http().post(`/accounts/${accountId}/withdrawals`).send(body).expect(400);
+    });
+
+    it('returns 404 for an unknown account', async () => {
+      const unknown = '00000000-0000-4000-8000-000000000000';
+
+      const res = await http()
+        .post(`/accounts/${unknown}/withdrawals`)
+        .send({ amountMinor: 100, operationId: 'wd-1' })
+        .expect(404);
+      expect(res.body.code).toBe('ACCOUNT_NOT_FOUND');
+    });
+
+    it('returns 400 for a malformed account id', async () => {
+      await http()
+        .post('/accounts/not-a-uuid/withdrawals')
+        .send({ amountMinor: 100, operationId: 'wd-1' })
+        .expect(400);
+    });
+  });
+
   it('rejects an invalid open-account body (400)', async () => {
     await http().post('/accounts').send({ ownerName: '' }).expect(400);
     await http().post('/accounts').send({ ownerName: 'Ada', currency: 'eur' }).expect(400);

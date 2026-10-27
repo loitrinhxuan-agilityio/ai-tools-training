@@ -1,5 +1,10 @@
 import { InvalidAmountError, InvalidCurrencyError } from './domain-errors.js';
-import { addMinor, assertCurrencyCode, assertPositiveMinorAmount } from './money.js';
+import {
+  addMinor,
+  assertCurrencyCode,
+  assertPositiveMinorAmount,
+  subtractMinor,
+} from './money.js';
 
 describe('money', () => {
   it.each([1, 1050, Number.MAX_SAFE_INTEGER])('accepts %s minor units', (amount) => {
@@ -16,6 +21,16 @@ describe('money', () => {
   it('adds amounts exactly and refuses unsafe results', () => {
     expect(addMinor(10, 5)).toBe(15);
     expect(() => addMinor(Number.MAX_SAFE_INTEGER, 1)).toThrow(InvalidAmountError);
+  });
+
+  it('subtracts amounts exactly, down to zero', () => {
+    expect(subtractMinor(15, 5)).toBe(10);
+    expect(subtractMinor(500, 500)).toBe(0);
+  });
+
+  it('refuses subtractions that would go negative as an invariant failure, not client input', () => {
+    expect(() => subtractMinor(500, 501)).toThrow(/invariant/);
+    expect(() => subtractMinor(500, 501)).not.toThrow(InvalidAmountError);
   });
 
   it('validates ISO 4217-shaped currency codes', () => {
