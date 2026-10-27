@@ -52,8 +52,19 @@
 - **TC-REG-002:** expected result now separates the aggregate error from the HTTP 422 response.
 - **TC-REG-007:** expected result no longer says `INVALID_AMOUNT` over HTTP. Over HTTP the response is 400 from request validation. `INVALID_AMOUNT` applies only at the aggregate level.
 
+## Mapping limits (not independently verified)
+
+- **TC-REG-008** asserts stream order only. "Unchanged from baseline" has no stored snapshot to compare against, so that part is not verified.
+- **TC-REG-006** checks the event names and the withdrawal payload. The deposit and account-opened payloads are not separately asserted.
+- **TC-REG-009** is a command-level result (exit codes), not a per-rule check.
+- **TC-REG-001** is the broad suite result. Each other REG case is mapped to the named assertions above.
+
+## Result vocabulary
+
+Results follow the vocabulary in [test-matrix.md](test-matrix.md): PASS, FAIL, BLOCKED, NOT RUN. Across the 61 cases in the matrix, step 2 recorded **9 PASS, 0 FAIL, 18 BLOCKED, 34 NOT RUN**. The 9 PASS cases are TC-REG-001 to TC-REG-009. TC-REG-008 is recorded as PASS with the mapping limit above. TC-REG-010 and TC-REG-011 are NOT RUN, and every WH case is BLOCKED or NOT RUN.
+
 ## Notes
 
 - The first lint run printed `ESLint output (JSON parse failed)`. That came from the RTK output filter, not the project. Running lint without the filter shows it passes.
 - The `feature-kickoff/` folder contains eight files, not six. The extra two are `updated-open-questions.md` and `client-clarification-email.md`.
-- Nothing is committed. `package-lock.json` still has the `npm install` change, and the `feature-kickoff/` folder is untracked.
+- Work is committed on `feat/new-feature-kickoff`: eight docs commits plus the `package-lock.json` chore commit. Nothing is pushed.
