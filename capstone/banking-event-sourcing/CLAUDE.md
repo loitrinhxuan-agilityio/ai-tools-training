@@ -14,16 +14,16 @@ Learning project, not production banking. NestJS 12 (ESM), TypeScript, `@ocoda/e
 - Development: `npm run start:dev`; production-style: `npm start`.
 - Build/typecheck: `npm run build`; `npm run typecheck`.
 - Unit and HTTP tests: `npm test` (in-memory store).
-- PostgreSQL integration tests: `npm run test:e2e`.
+- PostgreSQL integration tests: `npm run test:e2e`. The e2e config passes `TEST_DATABASE_URL` to the app as `DATABASE_URL`, so these tests never touch the dev database.
 - Lint: `npm run lint`. `npm run format` rewrites files; run only when requested.
 
 ## Coding Conventions
-- Follow `src/<context>/{domain,application/{commands,queries},infrastructure,api}`; shared code belongs in `src/shared/`.
+- Follow `src/<context>/{domain,application/{commands,queries},infrastructure,api}`; shared code belongs in `src/shared/`. App-wide infrastructure lives at the top level of `src/`: `src/config/` and `src/event-store/`.
 - Keep domain logic free of I/O. Follow existing NestJS and TypeScript patterns.
-- Use kebab-case filenames with role suffixes (`.aggregate.ts`, `.events.ts`, `.command.ts`, `.query.ts`, `.spec.ts`). Relative ESM imports end in `.js`.
+- Use kebab-case filenames with role suffixes: `.aggregate.ts`, `.events.ts`, `.command.ts`, `.query.ts`, `.repository.ts`, `.controller.ts`, `.module.ts`, `.dto.ts`, `.filter.ts`, `.initializer.ts`, `.spec.ts`, `.http.spec.ts`, `.e2e-spec.ts`. Files without a role suffix (`money.ts`, `domain-errors.ts`, `account-id.ts`) are fine. Relative ESM imports end in `.js`.
 - Declare explicit kebab-case event names with `@Event('...')`; don't derive names from class names.
 - Throw `DomainError` subclasses with stable codes; map them to HTTP responses only in `DomainExceptionFilter`.
-- Validate HTTP DTOs with `class-validator` and the configured global `ValidationPipe` (`whitelist` and `forbidNonWhitelisted`).
+- Validate HTTP DTOs with `class-validator` and the configured global `ValidationPipe` (`whitelist: true`; unknown properties are stripped, not rejected).
 - Represent money as integer minor units using `src/shared/money.ts`; use `number` with `Number.isSafeInteger`, never floating-point arithmetic.
 - Keep changes focused and copy established patterns before introducing new ones.
 
