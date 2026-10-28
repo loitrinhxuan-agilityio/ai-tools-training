@@ -37,7 +37,7 @@ Status meanings:
 | Q7 | First release: customer history and support lookup. Failed-attempt history and support actions out of scope. | Scope confirmed; deadline open |
 | B1 | Defer customer release until authentication and account ownership are defined and implemented. | Ownership OPEN |
 | B2 | Support lookups need an authorized role and a case ID or reason. | Role tiers and audit access OPEN |
-| B3 | Block release until authorization is implemented and tested. Internal demos need approved access restrictions. | Restriction definition OPEN; see round 2, item 2 |
+| B3 | Block release until authorization is implemented and tested. Internal demos need approved access restrictions. | Restriction definition OPEN; see 2b item 2 |
 | B4 | Audit lookups with staff ID, account, query, timestamp, case ID/reason. Prefer blocking lookups if audit fails. Audit customer lookups when introduced. | Subject to security review |
 | B5 | Transaction and audit retention OPEN pending legal/compliance guidance. | OPEN |
 | P1 | UTC. Inclusive bounds. Date-only `to` covers the whole day. 90-day default only when neither date is given. No maximum range. | Confirmed for demo |
@@ -53,6 +53,20 @@ Status meanings:
 | D6 | Same fields for customers and support. Case ID and audit metadata stay in the audit record. | Confirmed for demo |
 
 ## Round 2 — resolutions (simulated)
+
+Round 2 rows cite one of three lists. The lists come from three client replies; labels here and in the other docs use these names:
+
+- **2a** — the Q-numbered answers (Q1.1–Q6.3).
+- **2b item N** — the nine-item product list: 1 empty results; 2 existing open routes; 3 support authentication; 4 audit failure; 5 case ID; 6 date rules; 7 page size; 8 demo approval; 9 review date.
+- **2c item N** — the six-item list: 1 future dates; 2 pagination (bare list); 3 route protection; 4 raw event history; 5 stakeholder ownership; 6 audit of denied attempts.
+
+Where a decision appears in more than one list, the row names the list it was taken from.
+
+Cross-references for 2b items with no separate row (existing entries cover them; nothing is duplicated):
+- **2b item 2** (existing open routes) → covered by the **2c item 3** row (route protection).
+- **2b item 6** (date rules) → covered by the **Q3.1–Q3.6** rows.
+- **2b item 7** (page size) → covered by the **Q4.1–Q4.2** rows.
+- **2b item 9** (review date) → covered by the **Q6.3** row, and the **2c item 5** row (stakeholders).
 
 | Item | Decision | Status |
 |---|---|---|
@@ -74,15 +88,16 @@ Status meanings:
 | Q6.1 | Support lookup may ship before customer history once authorization and audit pass. | Confirmed for demo |
 | Q6.2 | Internal demos use test data only, in private or local environments, with security reviewer approval. No production data. | Confirmed for demo; reviewer role OPEN |
 | Q6.3 | A review date is needed before implementation planning. | Confirmed for demo; date OPEN |
-| Item 1 | Empty results return a bare empty list. The UI displays "No withdrawals found". Failed-attempt notices stay in documentation. | Confirmed for demo |
-| Item 1 (future dates) | Reject future timestamps and future `from`. Date-only `to` for today (UTC) includes the whole day. `from = to` is valid. Clock tolerance left to engineering. | Confirmed for demo |
-| Item 2 | Keep the response body a bare list. Engineering chooses the next/previous cursor mechanism without breaking compatibility. | Confirmed for demo |
-| Item 3 | Protect all routes before any real release, including write routes. Authentication design subject to security review. | Confirmed for demo; mechanism OPEN |
-| Item 4 | Keep raw event history for existing functionality, restricted to an authorized internal or security role before release. Tests must verify access control. | Confirmed for demo |
-| Item 5 | Project lead identifies the security reviewer and stakeholders. Review date stays OPEN until they are identified. | Confirmed for demo; date OPEN |
-| Item 6 | Audit denied access and rejected support lookups, including missing or invalid case IDs. Empty-result auditing is covered by the audit design review. | Confirmed for demo; empty-result auditing OPEN |
-| Item 7 (round 2 reject) | Audit recording failure blocks customer and support reads. | Confirmed for demo; subject to security review |
-| Item 8 | Demos need documented sign-off from the designated security reviewer. Reviewer role and checklist stay OPEN. | Confirmed for demo; role OPEN |
+| 2b item 1 | Empty results return a bare empty list. The UI displays "No withdrawals found". Failed-attempt notices stay in documentation. | Confirmed for demo |
+| 2c item 1 (future dates) | Reject future timestamps and future `from`. Date-only `to` for today (UTC) includes the whole day. `from = to` is valid. Clock tolerance left to engineering. | Confirmed for demo |
+| 2c item 2 | Keep the response body a bare list. Engineering chooses the next/previous cursor mechanism without breaking compatibility. | Confirmed for demo |
+| 2c item 3 | Protect all routes before any real release, including write routes. Authentication design subject to security review. | Confirmed for demo; mechanism OPEN |
+| 2c item 4 | Keep raw event history for existing functionality, restricted to an authorized internal or security role before release. Tests must verify access control. | Confirmed for demo |
+| 2c item 5 | Project lead identifies the security reviewer and stakeholders. Review date stays OPEN until they are identified. | Confirmed for demo; date OPEN |
+| 2c item 6 | Audit denied access and rejected support lookups, including missing or invalid case IDs. Empty-result auditing is covered by the audit design review. | Confirmed for demo; empty-result auditing OPEN |
+| 2b item 4 (audit failure) | Audit recording failure blocks customer and support reads. | Confirmed for demo; subject to security review |
+| 2b item 3 (support authentication) | Support authentication mechanism stays OPEN for security review. Support-first release cannot ship without it. | OPEN (release gate) |
+| 2b item 8 | Demos need documented sign-off from the designated security reviewer. Reviewer role and checklist stay OPEN. | Confirmed for demo; role OPEN |
 
 ## Conflicts with earlier documents
 
@@ -100,14 +115,15 @@ Product:
 - Customer authentication and account ownership model (B1).
 - Support role tiers and who reads audit records (B2, B4).
 - Audit retention and legal/compliance requirements (B5).
-- Empty-result auditing (round 2, item 6).
+- Empty-result auditing (2c item 6).
 - `pending` and `reversed` statuses (Q2).
 - Edge inclusivity of the 90-day window (Q3).
 - Confirmation of the 90-day and 20-item defaults (Q3).
-- Review date and security reviewer identity (round 2, items 5 and 8).
+- Response field name: `amount` vs `amountMinor` (API contract; `developer-review.md` item 7). Not decided by the simulated client.
+- Review date and security reviewer identity (2c item 5; 2b item 8).
 
 Engineering (not client decisions):
-- Authentication and route protection mechanisms, including protecting existing routes (round 2, item 3).
+- Authentication and route protection mechanisms, including protecting existing routes (2c item 3; support authentication 2b item 3).
 - Audit storage, fields, and failure handling (security review).
 - Next/previous cursor mechanism.
 - Case ID format and length limits.

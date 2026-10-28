@@ -31,8 +31,8 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 - Sorted newest first, next/previous navigation, no total count. — Confirmed for demo (round 1 Q3, round 2 P2).
 - Default lookback 90 days, only when neither date is given, rolling. — **PROVISIONAL.**
 - Default page size 20. Values above 100 are capped at 100. Zero, negative, non-integer, and non-numeric values are rejected. — Default **PROVISIONAL**; cap and rejection Confirmed for demo (round 2 Q4).
-- Cursor mechanism for next/previous — **ENG PROPOSAL.** Must not change the bare-list body (round 2, item 2).
-- Empty account or no matches returns a bare empty list (200). — Confirmed for demo (round 2, item 1).
+- Cursor mechanism for next/previous — **ENG PROPOSAL.** Must not change the bare-list body (2c item 2).
+- Empty account or no matches returns a bare empty list (200). — Confirmed for demo (2b item 1).
 
 **Out of scope:**
 - Failed attempts and failure reasons. — Confirmed for demo (Q1, Q2).
@@ -43,7 +43,7 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 
 **Dependencies:**
 - **BLOCKED (round 1 B1):** customer release needs authentication and account ownership. Ownership relationships are **OPEN**.
-- **BLOCKED (round 2 item 3):** route protection for all existing routes before real release. Mechanism **OPEN** for security review.
+- **BLOCKED (2c item 3):** route protection for all existing routes before real release. Mechanism **OPEN** for security review.
 - **BLOCKED (WH-04):** each page request is audited (round 2 Q2.1–Q2.2). Audit storage and design are **OPEN**; audit failure blocks the read.
 - **OPEN (developer decision):** read path — replay of `account-<id>` or a projection. Phase 3 in `CLAUDE.md`.
 - **ENG PROPOSAL:** timestamp taken from the stored envelope (`occurredOn`), not the payload.
@@ -61,12 +61,16 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 - [ ] `pageSize` of zero, negative, non-integer, or non-numeric returns 400. — Confirmed for demo (round 2); error code ENG PROPOSAL.
 - [ ] An account with no matches returns 200 with an empty list. — Confirmed for demo (round 2).
 - [ ] An unknown account returns `404 ACCOUNT_NOT_FOUND`. — Existing code; same response as unauthorized (round 1 P3).
-- [ ] A malformed account ID returns `400`. — Existing; `INVALID_ID` is not returned on `:id` routes today (see `developer-review.md`).
+- [ ] A malformed account ID returns `400`. — Status confirmed. The error code is **OPEN**: `:id` routes return 400 with no `code` today (`ParseUUIDPipe`), and `developer-review.md` item 7 records the question.
 - [ ] No response includes a failure reason, a balance, or raw event payloads. — Confirmed for demo.
 - [ ] Each page request writes one audit record. — Confirmed for demo (round 2); storage OPEN.
 - [ ] Customer-facing release: **BLOCKED** until authentication, ownership, route protection, and audit are implemented and tested.
 
-**Release status:** Build allowed. Release **BLOCKED**.
+**Implementation split (resolves the build-vs-audit conflict):**
+- **Buildable now:** the internal list query, the date-range and page-size rules, paging, and handler tests. This is `GetWithdrawalHistoryHandler`, built on Day 12 and not exposed.
+- **Not buildable yet:** the `GET /accounts/:id/withdrawals` route, the per-page audit write, and any customer-facing exposure. These wait for WH-04 (audit design approved) and SEC-01 (route protection).
+
+**Release status:** Release **BLOCKED** on authentication, ownership, route protection, and audit.
 
 ---
 
@@ -90,14 +94,14 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 
 **Dependencies:**
 - **BLOCKED (round 1 B2):** support authorized role and role tiers are **OPEN**.
-- **BLOCKED (round 2 item 3):** support authentication cannot ship without it. Mechanism **OPEN** for security review.
+- **BLOCKED (2b item 3):** support authentication cannot ship without it. Mechanism **OPEN** for security review.
 - **BLOCKED (WH-04):** audit must be defined before release.
 - **OPEN (developer decision):** read path (same as WH-01).
 - Support may ship before customer history once authorization and audit pass. — Confirmed for demo (round 2 Q6.1).
 
 **Acceptance criteria:**
 - [ ] Lookup by account and `operationId` returns the matching withdrawal with the WH-01 field set. — Confirmed for demo.
-- [ ] A lookup with no `case_id` returns 400. — Confirmed for demo (round 2); error code ENG PROPOSAL.
+- [ ] A lookup with no case ID (parameter name and location OPEN) returns 400. — Confirmed for demo (round 2); error code ENG PROPOSAL.
 - [ ] A lookup with a note but no case ID returns 400. — Confirmed for demo (round 2).
 - [ ] A lookup with a valid case ID and optional note succeeds, and the case ID and note appear in the audit record only. — Confirmed for demo (round 1 D6, round 2 Q2.3).
 - [ ] An `operationId` with no successful withdrawal on that account returns `404`. — Confirmed for demo; code ENG PROPOSAL.
@@ -108,7 +112,9 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 - [ ] No action endpoint is registered. — Confirmed for demo.
 - [ ] Cross-account access requires an authorized role; **BLOCKED** until authorization exists.
 
-**Release status:** Build allowed. Release **BLOCKED** on WH-04, support authentication, and authorization.
+**Implementation split:** the handler and the 404 status can be built after the error-code decision (G3). The route, case-ID validation, and audit wait for WH-04 and support authentication.
+
+**Release status:** Release **BLOCKED** on WH-04, support authentication, and authorization.
 
 ---
 
@@ -122,11 +128,11 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 - Structured case ID plus optional note, required. — Confirmed for demo (round 2 Q2.4).
 - Reversed dates return 400. Malformed dates and timezone-less timestamps return 400. Future `from` or `to` returns 400. — Confirmed for demo (round 2); error codes ENG PROPOSAL.
 - `from` equal to `to` is valid. — Confirmed for demo (round 2).
-- Each lookup is audited (WH-04). Rejected lookups are audited too (round 2 item 6).
+- Each lookup is audited (WH-04). Rejected lookups are audited too (2c item 6).
 
 **Dependencies:**
 - WH-04 (audit).
-- **BLOCKED (round 1 B2, round 2 item 3):** support authorization and authentication.
+- **BLOCKED (round 1 B2; 2b item 3):** support authorization and authentication.
 - **OPEN (developer decision):** read path.
 
 **Acceptance criteria:**
@@ -142,7 +148,9 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 - [ ] A lookup with no matches returns 200 with an empty list. — Confirmed for demo (round 2).
 - [ ] Cross-account access is **BLOCKED** until authorization exists.
 
-**Release status:** Build allowed. Release **BLOCKED** on WH-04, support authentication, and authorization.
+**Implementation split:** the date and page-size rules from the internal list (Day 12) can be reused. The route, case ID, and audit wait for WH-04 and support authentication.
+
+**Release status:** Release **BLOCKED** on WH-04, support authentication, and authorization.
 
 ---
 
@@ -153,21 +161,22 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 **Scope:**
 - **Support lookups:** staff ID, account ID, query details (`operationId` or date range, with `from`/`to`), timestamp, case ID, and note. — Confirmed for demo (round 1 B4, round 2 Q2.3).
 - **Customer lookups:** customer ID, account ID, query parameters, timestamp, and result count. One record per page request. — Confirmed for demo (round 2 Q2.1–Q2.2). Reverses the earlier proposal that customer lookups are not audited.
-- **Denied and rejected attempts:** unauthorized account access, missing or invalid case ID, and rejected dates or page sizes. — Confirmed for demo (round 2 item 6).
-- **Empty-result auditing:** **OPEN**, covered by the audit design review (round 2 item 6).
-- **Failure behavior:** audit recording failure blocks the read for both customer and support. — Confirmed for demo (round 2 item 4), subject to security review.
+- **Denied and rejected attempts:** unauthorized account access, and rejected support lookups (including missing or invalid case IDs). — Confirmed for demo (2c item 6).
+- **Rejected customer requests** (invalid dates or page sizes on the customer list): **not decided by the client.** Whether they are audited is **OPEN** for the audit design review. This ticket does not require it.
+- **Empty-result auditing:** **OPEN**, covered by the audit design review (2c item 6).
+- **Failure behavior:** audit recording failure blocks the read for both customer and support. — Confirmed for demo (2b item 4), subject to security review.
 - Audit records are written before the response is returned. — **ENG PROPOSAL.**
 
 **Dependencies:**
 - **OPEN:** storage location. Developers must not choose it silently; it changes the event-sourcing design if placed on the account stream.
 - **OPEN:** who may read audit records, and the audit retention period (round 1 B5).
-- **BLOCKED (round 1 B1, B2):** the customer and staff identity that the audit records cannot be captured reliably until authentication exists.
+- **BLOCKED (round 1 B1, B2):** the customer and staff identity needed for audit records cannot be captured reliably until authentication exists.
 - **OPEN:** audit volume under abuse (denied-attempt auditing).
 
 **Acceptance criteria:**
 - [ ] Every support lookup in WH-02 and WH-03 produces one audit record. — Confirmed for demo.
 - [ ] Every customer page request in WH-01 produces one audit record. — Confirmed for demo (round 2).
-- [ ] Denied access and rejected support lookups produce an audit record. — Confirmed for demo (round 2 item 6).
+- [ ] Denied access and rejected support lookups produce an audit record. — Confirmed for demo (2c item 6).
 - [ ] A failed audit write blocks the read, for customer and support. — Confirmed for demo (round 2), subject to security review.
 - [ ] Audit records are not stored on the `account-<id>` stream. — ENG PROPOSAL; developers to confirm.
 - [ ] Audit record fields match the agreed minimum set. — Confirmed for demo at the level of fields in round 1 B4 and round 2 Q2.2–Q2.3; exact schema **OPEN**.
@@ -182,13 +191,13 @@ Requirements labelled **Confirmed for demo** (including round 2) are ticketed. P
 **Goal:** Existing and new routes require authentication before any real release, and raw event history is limited to an authorized internal or security role.
 
 **Scope:**
-- Authentication on every route, including write routes: `POST /accounts`, `POST /accounts/:id/deposits`, `POST /accounts/:id/withdrawals`, `GET /accounts/:id`, `GET /accounts/:id/deposits/:operationId`, `GET /accounts/:id/events`. — Confirmed for demo (round 2 item 3).
-- `GET /accounts/:id/events` kept for existing functionality, restricted to an authorized internal or security role. — Confirmed for demo (round 2 item 4).
-- Tests verify access control on each route. — Confirmed for demo (round 2 item 4).
+- Authentication on every route, including write routes: `POST /accounts`, `POST /accounts/:id/deposits`, `POST /accounts/:id/withdrawals`, `GET /accounts/:id`, `GET /accounts/:id/deposits/:operationId`, `GET /accounts/:id/events`. — Confirmed for demo (2c item 3).
+- `GET /accounts/:id/events` kept for existing functionality, restricted to an authorized internal or security role. — Confirmed for demo (2c item 4).
+- Tests verify access control on each route. — Confirmed for demo (2c item 4).
 - Mechanism **OPEN** for security review.
 
 **Dependencies:**
-- Security reviewer design (round 2 item 8, OPEN).
+- Security reviewer design (2b item 8, OPEN).
 - Existing HTTP tests call routes without credentials. They need updating (`src/accounts/accounts.http.spec.ts`).
 - `TC-REG-008` asserts the raw event endpoint returns stream order. It needs updating.
 
@@ -218,13 +227,13 @@ These items are intentionally not ticketed. Do not create tickets for them until
 | Item | Label | Blocks | Owner |
 |---|---|---|---|
 | Customer authentication and account ownership | BLOCKED (round 1 B1) | Customer release | Client and security review |
-| Support authentication mechanism | OPEN (round 2 item 3) | Support release | Security reviewer |
+| Support authentication mechanism | OPEN (2b item 3) | Support release | Security reviewer |
 | Support role tiers and audit readers | OPEN (round 1 B2, B4) | Support authorization, audit access | Client and security review |
-| Route protection mechanism | OPEN (round 2 item 3) | Any real release | Security reviewer |
-| Raw event history role | OPEN (round 2 item 4) | `/events` release | Security reviewer |
+| Route protection mechanism | OPEN (2c item 3) | Any real release | Security reviewer |
+| Raw event history role | OPEN (2c item 4) | `/events` release | Security reviewer |
 | Audit storage location and schema | OPEN | WH-04 | Developers and security reviewer |
 | Audit retention and legal/compliance | OPEN (round 1 B5) | Production use | Client compliance |
-| Empty-result auditing | OPEN (round 2 item 6) | WH-04 | Security reviewer |
+| Empty-result auditing | OPEN (2c item 6) | WH-04 | Security reviewer |
 | Case ID format and length limits | OPEN (round 2 Q2.3) | WH-02, WH-03 validation | Developers |
 | Confirm 90-day lookback default | PROVISIONAL | Final default | Client |
 | Confirm page size of 20 | PROVISIONAL | Final default | Client |
@@ -232,16 +241,17 @@ These items are intentionally not ticketed. Do not create tickets for them until
 | `pending` and `reversed` statuses | OPEN | Status list | Client |
 | Failed-withdrawal visibility | Future feature (round 1 P5) | Separate design review | Client and developers |
 | Read path: replay or projection | OPEN (developer) | WH-01, WH-02, WH-03 | Developers |
+| Response field name: `amount` vs `amountMinor` | OPEN (`developer-review.md` item 7). Not decided by the simulated client. | WH-01 to WH-03 response contract | Developers and client |
 | Cursor mechanism for next/previous | ENG PROPOSAL | WH-01, WH-03 | Developers |
-| Security reviewer identity, role and checklist | OPEN (round 2 item 8) | Demo sign-off | Project lead |
-| Review date | OPEN (round 2 item 5) | Implementation planning | Project lead |
+| Security reviewer identity, role and checklist | OPEN (2b item 8) | Demo sign-off | Project lead |
+| Review date | OPEN (2c item 5) | Implementation planning | Project lead |
 
 ## 4. Engineering proposals for developer review
 
 These are not client decisions. Each needs developer review before implementation.
 
 1. Endpoint paths: `GET /accounts/:id/withdrawals` and `GET /support/accounts/:id/withdrawals[/:operationId]`.
-2. Cursor-based pagination that keeps a bare-list body (round 2 item 2).
+2. Cursor-based pagination that keeps a bare-list body (2c item 2).
 3. New error codes `WITHDRAWAL_NOT_FOUND`, `INVALID_DATE_RANGE`, and codes for missing case ID, invalid page size, and invalid date formats.
 4. Clock tolerance for future-date checks.
 5. Timestamp taken from the event envelope (`occurredOn`).

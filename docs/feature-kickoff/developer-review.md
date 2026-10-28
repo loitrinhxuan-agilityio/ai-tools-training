@@ -157,3 +157,11 @@
 - `docs/feature-kickoff/developer-review.md` (new)
 
 No application code, dependencies, or commits were changed.
+
+## Post-review corrections
+
+Added during the implementation-readiness review. These corrections change facts, not recommendations. Statuses stay RECOMMENDED or OPEN, and nothing here is approved.
+
+1. **Item 3 caveat answered.** `IEventFilter.fromVersion` is a lower bound (`version >= n`) in both `PostgresEventStore.getEnvelopes` and the in-memory store. `direction` only reverses the order. Neither store has an upper bound, a date predicate or an event-type predicate, so older-than-cursor pagination cannot be a native filter. The scan options and their trade-offs are in [engineering-decision-note-scan-and-cursor.md](engineering-decision-note-scan-and-cursor.md).
+2. **Items 1 and 3 correction.** A withdrawal history read is a stream scan that can stop early. It is not an aggregate replay, and it needs no balance. The statement that every page costs a full replay applies to paths that call `AccountRepository.getById`, not to a history read built on `getEnvelopes`.
+3. **Route references.** The routes span `src/accounts/api/accounts.controller.ts:49–98`. Earlier references to `49–93` cover only part of the file.
