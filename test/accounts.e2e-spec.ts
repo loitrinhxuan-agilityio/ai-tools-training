@@ -244,6 +244,35 @@ describe('Accounts with the Postgres event store', () => {
     expect(state.body).toMatchObject({ balanceMinor: 400, version: 3 });
   });
 
+  it('answers a same-key deposit retry that loses the append race with duplicate, not a conflict', async () => {
+    const opened = await http().post('/accounts').send({ ownerName: 'Ada' }).expect(201);
+    const accountId: string = opened.body.accountId;
+    const repository = app.get(AccountRepository);
+
+    const restore = holdBothLoadsBeforeSave(repository);
+    try {
+      const [a, b] = await Promise.all([
+        http().post(`/accounts/${accountId}/deposits`).send({ amountMinor: 500, operationId: 'dep-same' }),
+        http().post(`/accounts/${accountId}/deposits`).send({ amountMinor: 500, operationId: 'dep-same' }),
+      ]);
+
+      expect(a.status).toBe(200);
+      expect(b.status).toBe(200);
+      expect([a.body.status, b.body.status].sort((x, y) => x.localeCompare(y))).toEqual([
+        'deposited',
+        'duplicate',
+      ]);
+      expect(a.body.balanceMinor).toBe(500);
+      expect(b.body.balanceMinor).toBe(500);
+    } finally {
+      restore();
+    }
+
+    // Only one money-deposited event was appended.
+    const state = await http().get(`/accounts/${accountId}`).expect(200);
+    expect(state.body).toMatchObject({ balanceMinor: 500, version: 2 });
+  });
+
   it('keeps the withdrawal balance and idempotency keys after an application restart', async () => {
     const accountId = await openAndDepositWithKey(1000);
     await http()

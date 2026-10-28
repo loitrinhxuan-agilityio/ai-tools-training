@@ -42,19 +42,20 @@ export class GetDepositDetailsHandler implements IQueryHandler<GetDepositDetails
     accountId,
     operationId,
   }: GetDepositDetailsQuery): Promise<DepositDetailsDto> {
-    const stream = EventStream.for(Account, AccountId.from(accountId));
+    const id = AccountId.from(accountId);
+    const stream = EventStream.for(Account, id);
     let streamHasEvents = false;
 
     for await (const batch of this.eventStore.getEvents(stream)) {
       for (const event of batch) {
         streamHasEvents = true;
         if (event instanceof MoneyDepositedEvent && event.operationId === operationId) {
-          return { accountId, operationId, amountMinor: event.amountMinor };
+          return { accountId: id.value, operationId, amountMinor: event.amountMinor };
         }
       }
     }
 
-    if (!streamHasEvents) throw new AccountNotFoundError(accountId);
-    throw new DepositNotFoundError(accountId, operationId);
+    if (!streamHasEvents) throw new AccountNotFoundError(id.value);
+    throw new DepositNotFoundError(id.value, operationId);
   }
 }

@@ -56,6 +56,22 @@ describe('Accounts HTTP flow (in-memory event store)', () => {
     });
   });
 
+  it('finds the same account when the id is sent in uppercase', async () => {
+    const accountId = await openAccount();
+    const upper = accountId.toUpperCase();
+
+    await http()
+      .post(`/accounts/${upper}/deposits`)
+      .send({ amountMinor: 700, operationId: 'op-1' })
+      .expect(200);
+
+    const state = await http().get(`/accounts/${upper}`).expect(200);
+    expect(state.body).toMatchObject({ accountId, balanceMinor: 700 });
+
+    const deposit = await http().get(`/accounts/${upper}/deposits/op-1`).expect(200);
+    expect(deposit.body).toEqual({ accountId, operationId: 'op-1', amountMinor: 700 });
+  });
+
   it('returns the event history in stream order', async () => {
     const accountId = await openAccount();
     await http()

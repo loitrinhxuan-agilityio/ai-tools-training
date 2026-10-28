@@ -4,7 +4,11 @@ import {
   type ICommandHandler,
 } from '@ocoda/event-sourcing';
 import { AccountId } from '../../domain/account-id.js';
-import type { DepositResult } from '../../domain/account.aggregate.js';
+import type {
+  Account,
+  DepositResult,
+} from '../../domain/account.aggregate.js';
+import { ConcurrencyConflictError } from '../../../shared/domain-errors.js';
 import { AccountRepository } from '../../infrastructure/account.repository.js';
 
 export interface DepositMoneyResult {
@@ -29,9 +33,25 @@ export class DepositMoneyHandler implements ICommandHandler<DepositMoneyCommand>
   constructor(private readonly accounts: AccountRepository) {}
 
   async execute(command: DepositMoneyCommand): Promise<DepositMoneyResult> {
-    const account = await this.accounts.getById(
-      AccountId.from(command.accountId),
-    );
+    const accountId = AccountId.from(command.accountId);
+    const account = await this.accounts.getById(accountId);
+    try {
+      return await this.decideAndSave(account, command);
+    } catch (error) {
+      if (!(error instanceof ConcurrencyConflictError)) throw error;
+
+      // A concurrent writer may have stored this operationId. If so, replay
+      // once so a retry gets 'duplicate' (or OPERATION_ID_REUSED), not a conflict.
+      const reloaded = await this.accounts.getById(accountId);
+      if (!reloaded.hasProcessedOperation(command.operationId)) throw error;
+      return this.decideAndSave(reloaded, command);
+    }
+  }
+
+  private async decideAndSave(
+    account: Account,
+    command: DepositMoneyCommand,
+  ): Promise<DepositMoneyResult> {
     const status = account.deposit(command.amountMinor, command.operationId);
     await this.accounts.save(account);
 
