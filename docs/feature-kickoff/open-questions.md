@@ -5,6 +5,8 @@
 **For:** QA, to walk through with the client  
 **Source:** [client-brief.md](client-brief.md)
 
+> **Superseded for planning:** this file is the original question list, written before any client feedback. The simulated decisions from rounds 1 and 2 are in [updated-open-questions.md](updated-open-questions.md). Use that file for current status.
+
 Withdrawal processing is already implemented. This kickoff explores improving withdrawal history and investigation capabilities for customers and support staff.
 
 Each question has a short note on what the codebase does today, so QA can tell real decisions from settled behavior. Examples in the notes are not requirements. Leave unanswered questions open.

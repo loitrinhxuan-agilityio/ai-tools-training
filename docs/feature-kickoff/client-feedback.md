@@ -3,7 +3,7 @@
 **Project:** Banking Event-Sourcing Capstone  
 **Source:** Client Clarification Email — Withdrawal History & Visibility  
 **Status:** Assumed client feedback for Day 12 training simulation  
-**Note:** This document records simulated client feedback only. `open-questions.md` has not been updated yet.
+**Note:** This document records simulated client feedback only. It is round 1. Round 2 decisions (status filter dropped, customer audit, case ID, date and page-size rules, route protection, raw event history restriction) are recorded in [updated-open-questions.md](updated-open-questions.md) and supersede this feedback where they differ.
 
 ## Feedback on the Proposed Scope
 
