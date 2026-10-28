@@ -52,5 +52,4 @@ Learning project, not production banking. NestJS 12 (ESM), TypeScript, `@ocoda/e
 - Rewrite stored events or change existing event payloads without an explicit evolution strategy.
 - Bypass aggregate invariants or weaken/skip tests just to pass.
 - Add dependencies, an ORM, or another event store without approval.
-- Edit outside `capstone/banking-event-sourcing/` unless asked.
 - Commit, push, merge, or open a PR without explicit approval.
