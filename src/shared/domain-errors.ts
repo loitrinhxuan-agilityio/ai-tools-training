@@ -17,6 +17,7 @@ export type DomainErrorCode =
   | 'INVALID_OWNER_NAME'
   | 'ACCOUNT_NOT_FOUND'
   | 'DEPOSIT_NOT_FOUND'
+  | 'WITHDRAWAL_NOT_FOUND'
   | 'OPERATION_ID_REUSED'
   | 'INSUFFICIENT_FUNDS'
   | 'CONCURRENCY_CONFLICT';
@@ -47,6 +48,19 @@ export class DepositNotFoundError extends DomainError {
 
   constructor(accountId: string, operationId: string) {
     super(`Account ${accountId} has no deposit with operation ${operationId}`);
+  }
+}
+
+/**
+ * The account exists but has no successful withdrawal with this operationId.
+ * Failed attempts are never stored, so they also land here.
+ * ENG PROPOSAL: the code name `WITHDRAWAL_NOT_FOUND` is not yet approved (gate G3).
+ */
+export class WithdrawalNotFoundError extends DomainError {
+  readonly code = 'WITHDRAWAL_NOT_FOUND';
+
+  constructor(accountId: string, operationId: string) {
+    super(`Account ${accountId} has no withdrawal with operation ${operationId}`);
   }
 }
 
