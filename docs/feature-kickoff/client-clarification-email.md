@@ -1,6 +1,6 @@
 # Client Clarification Email — Withdrawal History & Visibility
 
-**Suggested file path:** `capstone/banking-event-sourcing/docs/feature-kickoff/client-clarification-email.md`
+**Suggested file path:** `docs/feature-kickoff/client-clarification-email.md`
 
 **Subject:** Confirmation Needed: Withdrawal History & Support Lookup Requirements
 
