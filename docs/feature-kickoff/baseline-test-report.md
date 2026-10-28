@@ -10,7 +10,7 @@
 - **Branch:** `feat/new-feature-kickoff` (created from `feat/banking-es-phase-2`)
 - **Node:** 24.22.0 (from `.nvmrc`)
 - **PostgreSQL:** 17.11 (`postgres:17` image, port 5433)
-- **Working directory:** `capstone/banking-event-sourcing/`
+- **Working directory:** repository root (`.`)
 
 ## Commands and results
 
