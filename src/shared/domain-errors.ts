@@ -58,7 +58,7 @@ export class DepositNotFoundError extends DomainError {
 /**
  * The account exists but has no successful withdrawal with this operationId.
  * Failed attempts are never stored, so they also land here.
- * ENG PROPOSAL: the code name `WITHDRAWAL_NOT_FOUND` is not yet approved (gate G3).
+ * Code name approved at gate G3.
  */
 export class WithdrawalNotFoundError extends DomainError {
   readonly code = 'WITHDRAWAL_NOT_FOUND';
@@ -98,8 +98,8 @@ export class ConcurrencyConflictError extends DomainError {
 }
 
 /*
- * Lookup input errors. ENG PROPOSAL: the code names and the 400 status are not
- * yet approved (gate G3). Only the reasons come from the approved rules.
+ * Lookup input errors. Codes and the 400 status approved at gate G3 (internal
+ * handler only). The reasons come from the approved rules in date-range.ts.
  */
 
 /** `from` is after `to`. Reported without a field because it concerns both. */

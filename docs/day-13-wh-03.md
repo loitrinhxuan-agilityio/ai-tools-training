@@ -15,9 +15,10 @@
 - Cross-account authorization (TC-WH03-008): BLOCKED on round 1 B2.
 - Audit record (TC-WH03-009) and missing-case-ID audit (TC-WH03-010): BLOCKED on WH-04.
 
-## Decisions taken (ENG PROPOSAL, not approved)
+## Decisions taken
 
-- Error codes `INVALID_DATE_RANGE`, `INVALID_DATE`, `FUTURE_DATE`, `INVALID_PAGE_SIZE`, all 400. Gate G3 is still open.
+- **G3 approved:** error codes `INVALID_DATE_RANGE`, `INVALID_DATE`, `FUTURE_DATE`, `INVALID_PAGE_SIZE`, all 400, as proposed. Applies to the internal handler only; route-level behaviour is not covered.
+- **G2 approved for this increment only:** full forward stream read (option B). Not approved as the production read strategy. Cost is unmeasured, and the Phase 3 projection remains open.
 - The 90-day lookback (PROVISIONAL), default page size 20 (PROVISIONAL) and cap 100 are injected by the caller. The clock tolerance is required and has no default (OPEN).
 - The scan is the full forward read from WH-01, with no scan cap. Cost is unmeasured.
 

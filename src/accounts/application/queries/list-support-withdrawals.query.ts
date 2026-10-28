@@ -57,7 +57,7 @@ export interface SupportWithdrawalLookupOptions {
   maxPageSize: number;
 }
 
-/** ENG PROPOSAL: codes and statuses are not approved (gate G3). */
+/** Maps a date failure to the codes approved at gate G3. */
 function toDomainError(failure: DateRangeFailure): DomainError {
   if (failure.reason === 'reversed' || failure.field === undefined) {
     return new InvalidDateRangeError();
