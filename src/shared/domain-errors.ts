@@ -20,7 +20,11 @@ export type DomainErrorCode =
   | 'WITHDRAWAL_NOT_FOUND'
   | 'OPERATION_ID_REUSED'
   | 'INSUFFICIENT_FUNDS'
-  | 'CONCURRENCY_CONFLICT';
+  | 'CONCURRENCY_CONFLICT'
+  | 'INVALID_DATE_RANGE'
+  | 'INVALID_DATE'
+  | 'FUTURE_DATE'
+  | 'INVALID_PAGE_SIZE';
 
 export class InvalidAmountError extends DomainError {
   readonly code = 'INVALID_AMOUNT';
@@ -90,5 +94,48 @@ export class ConcurrencyConflictError extends DomainError {
 
   constructor(streamId: string) {
     super(`Stream ${streamId} was modified concurrently; reload and retry`);
+  }
+}
+
+/*
+ * Lookup input errors. ENG PROPOSAL: the code names and the 400 status are not
+ * yet approved (gate G3). Only the reasons come from the approved rules.
+ */
+
+/** `from` is after `to`. Reported without a field because it concerns both. */
+export class InvalidDateRangeError extends DomainError {
+  readonly code = 'INVALID_DATE_RANGE';
+
+  constructor() {
+    super('from must not be after to');
+  }
+}
+
+/** A bound is not a valid date, or is a timestamp without a timezone. */
+export class InvalidDateError extends DomainError {
+  readonly code = 'INVALID_DATE';
+
+  constructor(field: 'from' | 'to', reason: 'malformed' | 'missing-timezone') {
+    const detail =
+      reason === 'missing-timezone' ? 'needs a timezone' : 'is malformed';
+    super(`${field} ${detail}`);
+  }
+}
+
+/** A bound is later than now, allowing for the configured clock tolerance. */
+export class FutureDateError extends DomainError {
+  readonly code = 'FUTURE_DATE';
+
+  constructor(field: 'from' | 'to') {
+    super(`${field} must not be in the future`);
+  }
+}
+
+/** The page size is zero, negative, a decimal, or not a number. */
+export class InvalidPageSizeError extends DomainError {
+  readonly code = 'INVALID_PAGE_SIZE';
+
+  constructor(reason: 'non-numeric' | 'non-integer' | 'non-positive') {
+    super(`pageSize is ${reason}`);
   }
 }
