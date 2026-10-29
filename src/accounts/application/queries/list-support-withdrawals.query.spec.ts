@@ -1,10 +1,18 @@
 import type { EventStore } from '@ocoda/event-sourcing';
+import { InMemoryAuditWriter } from '../../../audit/in-memory-audit-writer.js';
+import {
+  SupportLookupAuditor,
+  type SupportAuditContext,
+} from '../../../audit/support-lookup-auditor.js';
 import {
   ListSupportWithdrawalsHandler,
   ListSupportWithdrawalsQuery,
   type SupportWithdrawalLookupOptions,
 } from './list-support-withdrawals.query.js';
 import { AccountId } from '../../domain/account-id.js';
+
+const SUPPORT: SupportAuditContext = { actorId: 'staff-1', caseId: 'CASE-1', note: null };
+const AUDITOR = new SupportLookupAuditor(new InMemoryAuditWriter());
 
 /*
  * Stub store, as in get-withdrawal-history.query.spec.ts: the handler only reads
@@ -92,14 +100,8 @@ const lookup = (
   beforeVersion?: number,
   options: SupportWithdrawalLookupOptions = OPTIONS,
 ) =>
-  new ListSupportWithdrawalsHandler(storeWith(envelopes), options).execute(
-    new ListSupportWithdrawalsQuery(
-      ACCOUNT_ID,
-      from,
-      to,
-      pageSize,
-      beforeVersion,
-    ),
+  new ListSupportWithdrawalsHandler(storeWith(envelopes), options, AUDITOR).execute(
+    new ListSupportWithdrawalsQuery(ACCOUNT_ID, from, to, pageSize, beforeVersion, undefined, SUPPORT),
   );
 
 const operationIds = (items: { operationId: string }[]) =>
@@ -223,12 +225,8 @@ describe('ListSupportWithdrawalsHandler', () => {
     // TC-WH03-003
     it('rejects from after to without reading the store', async () => {
       await expect(
-        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS).execute(
-          new ListSupportWithdrawalsQuery(
-            ACCOUNT_ID,
-            '2026-10-20',
-            '2026-10-10',
-          ),
+        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, '2026-10-20', '2026-10-10', undefined, undefined, undefined, SUPPORT),
         ),
       ).rejects.toMatchObject({ code: 'INVALID_DATE_RANGE' });
     });
@@ -236,8 +234,8 @@ describe('ListSupportWithdrawalsHandler', () => {
     // TC-WH03-004
     it('rejects a malformed date and names the field', async () => {
       await expect(
-        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, 'not-a-date'),
+        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, 'not-a-date', undefined, undefined, undefined, undefined, SUPPORT),
         ),
       ).rejects.toMatchObject({
         code: 'INVALID_DATE',
@@ -247,12 +245,8 @@ describe('ListSupportWithdrawalsHandler', () => {
 
     it('rejects a timestamp without a timezone', async () => {
       await expect(
-        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS).execute(
-          new ListSupportWithdrawalsQuery(
-            ACCOUNT_ID,
-            undefined,
-            '2026-10-20T09:30:00',
-          ),
+        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, '2026-10-20T09:30:00', undefined, undefined, undefined, SUPPORT),
         ),
       ).rejects.toMatchObject({
         code: 'INVALID_DATE',
@@ -262,19 +256,16 @@ describe('ListSupportWithdrawalsHandler', () => {
 
     it('rejects a future from', async () => {
       await expect(
-        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS).execute(
-          new ListSupportWithdrawalsQuery(
-            ACCOUNT_ID,
-            '2026-10-28T12:00:00.001Z',
-          ),
+        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, '2026-10-28T12:00:00.001Z', undefined, undefined, undefined, undefined, SUPPORT),
         ),
       ).rejects.toMatchObject({ code: 'FUTURE_DATE' });
     });
 
     it('rejects a future to', async () => {
       await expect(
-        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, '2026-10-29'),
+        new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, '2026-10-29', undefined, undefined, undefined, SUPPORT),
         ),
       ).rejects.toMatchObject({ code: 'FUTURE_DATE' });
     });
@@ -382,16 +373,8 @@ describe('ListSupportWithdrawalsHandler', () => {
       'rejects a page size that is %s without reading the store',
       async (_, raw) => {
         await expect(
-          new ListSupportWithdrawalsHandler(
-            storeMustNotBeRead,
-            OPTIONS,
-          ).execute(
-            new ListSupportWithdrawalsQuery(
-              ACCOUNT_ID,
-              undefined,
-              undefined,
-              raw,
-            ),
+          new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
+            new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, undefined, raw, undefined, undefined, SUPPORT),
           ),
         ).rejects.toMatchObject({ code: 'INVALID_PAGE_SIZE' });
       },

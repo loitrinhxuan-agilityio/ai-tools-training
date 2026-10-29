@@ -6,6 +6,10 @@ import {
   type IQueryHandler,
 } from '@ocoda/event-sourcing';
 import {
+  SupportLookupAuditor,
+  type SupportAuditContext,
+} from '../../../audit/support-lookup-auditor.js';
+import {
   AccountNotFoundError,
   WithdrawalNotFoundError,
 } from '../../../shared/domain-errors.js';
@@ -37,6 +41,8 @@ export class GetWithdrawalDetailsQuery extends Query<WithdrawalDetailsDto> {
   constructor(
     public readonly accountId: string,
     public readonly operationId: string,
+    /** Who is looking up, with the case ID and note. Recorded in the audit row. */
+    public readonly audit: SupportAuditContext,
   ) {
     super();
   }
@@ -47,15 +53,36 @@ export class GetWithdrawalDetailsQuery extends Query<WithdrawalDetailsDto> {
  * Failed attempts are never stored, so they cannot match. Deposits share the
  * operationId namespace, so only `money-withdrawn` envelopes are considered.
  * Scans the stream, like the other queries, until Phase 3 adds a projection.
+ *
+ * The lookup is audited and fails closed (WH-04): no data is returned unless
+ * its audit row was written.
  */
 @QueryHandler(GetWithdrawalDetailsQuery)
 export class GetWithdrawalDetailsHandler implements IQueryHandler<GetWithdrawalDetailsQuery> {
-  constructor(private readonly eventStore: EventStore) {}
+  constructor(
+    private readonly eventStore: EventStore,
+    private readonly auditor: SupportLookupAuditor,
+  ) {}
 
-  async execute({
-    accountId,
-    operationId,
-  }: GetWithdrawalDetailsQuery): Promise<WithdrawalDetailsDto> {
+  async execute(query: GetWithdrawalDetailsQuery): Promise<WithdrawalDetailsDto> {
+    // Without a caller, no read may proceed: a lookup must always be audited.
+    if (!query.audit) throw new Error('GetWithdrawalDetailsQuery requires an audit context');
+    return this.auditor.run(
+      query.audit,
+      {
+        accountId: query.accountId,
+        action: 'withdrawal-lookup-by-operation',
+        query: { operationId: query.operationId },
+      },
+      () => this.find(query.accountId, query.operationId),
+      () => 1,
+    );
+  }
+
+  private async find(
+    accountId: string,
+    operationId: string,
+  ): Promise<WithdrawalDetailsDto> {
     const id = AccountId.from(accountId);
     const stream = EventStream.for(Account, id);
     let streamHasEvents = false;

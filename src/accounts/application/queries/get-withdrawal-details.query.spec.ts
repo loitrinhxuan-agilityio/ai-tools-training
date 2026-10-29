@@ -1,4 +1,9 @@
 import type { EventEnvelope, EventStore } from '@ocoda/event-sourcing';
+import { InMemoryAuditWriter } from '../../../audit/in-memory-audit-writer.js';
+import {
+  SupportLookupAuditor,
+  type SupportAuditContext,
+} from '../../../audit/support-lookup-auditor.js';
 import {
   AccountNotFoundError,
   WithdrawalNotFoundError,
@@ -13,6 +18,8 @@ import {
   GetWithdrawalDetailsHandler,
   GetWithdrawalDetailsQuery,
 } from './get-withdrawal-details.query.js';
+
+const SUPPORT: SupportAuditContext = { actorId: 'staff-1', caseId: 'CASE-1', note: null };
 
 /*
  * The handler only reads envelopes, so a stub store that yields batches of
@@ -42,7 +49,9 @@ function handlerWithHistory(
       }
     },
   } as unknown as EventStore;
-  return new GetWithdrawalDetailsHandler(eventStore);
+  // A fresh writer per handler, so audit rows never leak between tests.
+  const auditor = new SupportLookupAuditor(new InMemoryAuditWriter());
+  return new GetWithdrawalDetailsHandler(eventStore, auditor);
 }
 
 const opened = () =>
@@ -73,7 +82,7 @@ describe('GetWithdrawalDetailsHandler', () => {
     ]);
 
     const result = await handler.execute(
-      new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-2'),
+      new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-2', SUPPORT),
     );
 
     expect(result).toEqual({
@@ -94,7 +103,7 @@ describe('GetWithdrawalDetailsHandler', () => {
     const handler = handlerWithHistory([]);
 
     await expect(
-      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1')),
+      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1', SUPPORT)),
     ).rejects.toThrow(AccountNotFoundError);
   });
 
@@ -102,7 +111,7 @@ describe('GetWithdrawalDetailsHandler', () => {
     const handler = handlerWithHistory([opened(), withdrawn(200, 'op-1', 2)]);
 
     await expect(
-      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-missing')),
+      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-missing', SUPPORT)),
     ).rejects.toThrow(WithdrawalNotFoundError);
   });
 
@@ -110,7 +119,7 @@ describe('GetWithdrawalDetailsHandler', () => {
     const handler = handlerWithHistory([opened(), deposited(500, 'op-1', 2)]);
 
     await expect(
-      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1')),
+      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1', SUPPORT)),
     ).rejects.toThrow(WithdrawalNotFoundError);
   });
 
@@ -126,7 +135,7 @@ describe('GetWithdrawalDetailsHandler', () => {
     );
 
     await expect(
-      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-3')),
+      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-3', SUPPORT)),
     ).resolves.toMatchObject({ operationId: 'op-3', amountMinor: 50 });
   });
 
@@ -134,7 +143,7 @@ describe('GetWithdrawalDetailsHandler', () => {
     const handler = handlerWithHistory([opened()]);
 
     await expect(
-      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1')),
+      handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1', SUPPORT)),
     ).rejects.toThrow(WithdrawalNotFoundError);
   });
 });

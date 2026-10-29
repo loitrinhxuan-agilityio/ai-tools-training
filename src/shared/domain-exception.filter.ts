@@ -29,6 +29,7 @@ const STATUS_BY_CODE: Record<DomainErrorCode, HttpStatus> = {
   INVALID_PAGE_SIZE: HttpStatus.BAD_REQUEST,
   UNAUTHENTICATED: HttpStatus.UNAUTHORIZED,
   FORBIDDEN: HttpStatus.FORBIDDEN,
+  AUDIT_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
 /**
