@@ -6,22 +6,24 @@ import {
   type PostgresEventStoreConfig,
 } from '@ocoda/event-sourcing-postgres';
 import { AccountsModule } from './accounts/accounts.module.js';
+import { AuthModule } from './auth/auth.module.js';
 import { loadConfig } from './config/env.js';
 import { EventStoreInitializer } from './event-store/event-store.initializer.js';
 import { DomainExceptionFilter } from './shared/domain-exception.filter.js';
 
 /**
- * Root module. `eventSourcing` is injectable so tests can swap the Postgres
- * store for Ocoda's in-memory default.
+ * Root module. `eventSourcing` and `auth` are injectable so tests can swap the
+ * Postgres store for Ocoda's in-memory default and use a test signing key.
  */
 @Module({})
 export class AppModule {
   static register(
     eventSourcing: DynamicModule = AppModule.postgresEventSourcing(),
+    auth: DynamicModule = AuthModule.forRoot(),
   ): DynamicModule {
     return {
       module: AppModule,
-      imports: [eventSourcing, AccountsModule],
+      imports: [eventSourcing, auth, AccountsModule],
       providers: [
         EventStoreInitializer,
         { provide: APP_FILTER, useClass: DomainExceptionFilter },

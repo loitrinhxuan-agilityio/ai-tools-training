@@ -4,18 +4,27 @@ import { EventSourcingModule } from '@ocoda/event-sourcing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../app.module.js';
+import { AuthModule } from '../auth/auth.module.js';
+import { INTERNAL_SUPPORT_ROLE } from '../auth/roles.js';
+import { TEST_JWT_SECRET, signTestToken } from '../../test/support/test-tokens.js';
 
 /*
  * Full command/query flow through HTTP, using Ocoda's in-memory event store
  * (the default when no `eventStore` is configured). Fast and DB-free; the
- * Postgres behaviour is covered in test/*.e2e-spec.ts.
+ * Postgres behaviour is covered in test/*.e2e-spec.ts. Every request carries
+ * an internal-role token; refusals are covered in accounts.auth.http.spec.ts.
  */
 describe('Accounts HTTP flow (in-memory event store)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [AppModule.register(EventSourcingModule.forRoot({}))],
+      imports: [
+        AppModule.register(
+          EventSourcingModule.forRoot({}),
+          AuthModule.forSecret(TEST_JWT_SECRET),
+        ),
+      ],
     }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
@@ -25,7 +34,14 @@ describe('Accounts HTTP flow (in-memory event store)', () => {
     await app.close();
   });
 
-  const http = () => request(app.getHttpServer());
+  const token = signTestToken({ role: INTERNAL_SUPPORT_ROLE });
+  const http = () => {
+    const agent = request(app.getHttpServer());
+    return {
+      get: (url: string) => agent.get(url).set('Authorization', `Bearer ${token}`),
+      post: (url: string) => agent.post(url).set('Authorization', `Bearer ${token}`),
+    };
+  };
 
   async function openAccount(): Promise<string> {
     const res = await http().post('/accounts').send({ ownerName: 'Ada' }).expect(201);

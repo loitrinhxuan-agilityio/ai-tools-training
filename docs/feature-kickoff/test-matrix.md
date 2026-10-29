@@ -134,9 +134,12 @@ Every WH-04 result is **BLOCKED** until audit storage, audit fields, audit reade
 
 | ID | Ticket | Scenario | Preconditions / test data | Steps | Expected result | Label | Execution | Result | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
-| TC-SEC-001 | SEC-01 | Unauthenticated write routes are refused | No credentials | `POST /accounts`, `POST /accounts/:id/deposits`, `POST /accounts/:id/withdrawals` | 401 or 403 for each; no event appended | CONFIRMED | Blocked | BLOCKED | — | 2c item 3; mechanism OPEN |
-| TC-SEC-002 | SEC-01 | Unauthenticated read routes are refused | No credentials | `GET /accounts/:id`, `GET /accounts/:id/deposits/:operationId` | 401 or 403 for each | CONFIRMED | Blocked | BLOCKED | — | 2c item 3 |
-| TC-SEC-003 | SEC-01 | Raw event history is restricted | Credentials for a non-internal role; credentials for an authorized internal role | `GET /accounts/:id/events` with each | Non-internal role refused; internal role receives the history | CONFIRMED | Blocked | BLOCKED | — | 2c item 4; role OPEN |
+| TC-SEC-001 | SEC-01 | Unauthenticated write routes are refused | No credentials | `POST /accounts`, `POST /accounts/:id/deposits`, `POST /accounts/:id/withdrawals` | 401 for each (S3); no event appended | CONFIRMED | Run now (automated, uncommitted) | PASS (automated); release gate BLOCKED | `accounts.auth.http.spec.ts`: each route refused with 401; refused deposit, withdrawal and opening leave the store unchanged (HTTP `readAll` count; e2e `events` row count) | 2c item 3. Automated check only, not a release approval. |
+| TC-SEC-002 | SEC-01 | Unauthenticated read routes are refused | No credentials | `GET /accounts/:id`, `GET /accounts/:id/deposits/:operationId` | 401 for each (S3) | CONFIRMED | Run now (automated, uncommitted) | PASS (automated); release gate BLOCKED | `accounts.auth.http.spec.ts`: 401 UNAUTHENTICATED with the plain Bearer challenge; invalid tokens get the `invalid_token` challenge | 2c item 3. Automated check only, not a release approval. |
+| TC-SEC-003 | SEC-01 | Raw event history is restricted | Credentials for a non-internal role; credentials for an authorized internal role | `GET /accounts/:id/events` with each | Role not on the allow-list refused with 401; a recognized caller without the route role gets 403 (unit test only); internal role receives the history | CONFIRMED | Run now (automated, uncommitted) | PASS (automated); release gate BLOCKED | `accounts.auth.http.spec.ts` (401 for an unrecognized role; 200 for the internal role); `auth.guard.spec.ts` (403 via a test-only route role) | Only one role is on the allow-list, so no HTTP 403 test exists. Assignment policy OPEN. |
+| TC-SEC-004 | SEC-01 | Token claims and algorithm are enforced | Tokens signed with the test key, each varying one claim or the algorithm | `GET /accounts/:id` with each token | Refused with 401 `invalid_token`: missing or empty `sub`, `role` or `exp`; missing `iat`; `iat` more than 60 seconds ahead; age over 15 minutes; role not on the allow-list; HS512; `alg: none` | ENG PROPOSAL | Run now (automated, uncommitted) | PASS (automated); release gate BLOCKED | `auth.guard.spec.ts`; `accounts.auth.http.spec.ts` (HTTP: missing `exp`, missing `sub`, `alg: none`, HS512) | R2 and R3, approved by Loi Trinh and John on 2026-10-29. Issuer and audience values unconfirmed. |
+| TC-SEC-005 | SEC-01 | Production startup needs a valid `JWT_SECRET` | `JWT_SECRET` unset; set to the test key; set to a configured secret | `AppModule.register()` with the default auth wiring | Unset or test key: startup fails. Configured secret: its tokens accepted; test-key tokens refused | ENG PROPOSAL | Run now (automated, uncommitted) | PASS (automated); release gate BLOCKED | `src/auth/auth.module.spec.ts`; `src/config/env.spec.ts` | The only test of the production wiring. Key ownership and rotation remain an open blocker. |
+| TC-SEC-006 | SEC-01 | 401 carries the Bearer challenge; 403 does not | No token; an invalid token; a token lacking the route role | Requests to refused routes | 401 with `WWW-Authenticate: Bearer realm="banking-event-sourcing"` (no token) or with `error="invalid_token"` (invalid token). 403 has no challenge header. Body has no validation detail | ENG PROPOSAL | Run now (automated, uncommitted) | PASS (automated); release gate BLOCKED | `accounts.auth.http.spec.ts` (401 headers); `domain-exception.filter.spec.ts` (401 and 403 at filter level); `auth.guard.spec.ts` (403 via a test-only route role) | The 403 header check is at filter level. No HTTP 403 test, because only one role is on the allow-list. |
 
 ## Cross-cutting regression tests
 
@@ -151,7 +154,7 @@ These protect existing behavior from the spec's section 4.1. They run against th
 | TC-REG-005 | Cross-cutting | Concurrency conflict maps to 409 | Two writers on the same stream | Concurrent appends | One succeeds; the other returns 409 `CONCURRENCY_CONFLICT` | CONFIRMED (existing) | Run now (needs PostgreSQL, `npm run test:e2e`) | PASS | `test/accounts.e2e-spec.ts` "gives the losing HTTP writer 409 CONCURRENCY_CONFLICT when both loaded the same version"; "rejects a save based on a stale version (optimistic concurrency)". PostgreSQL 17.11, `banking_test` | Mapped to assertions |
 | TC-REG-006 | Cross-cutting | Event names and payloads unchanged | Current event definitions | Inspect `account.events.ts` against baseline | `account-opened`, `money-deposited`, `money-withdrawn` unchanged | CONFIRMED (existing) | Run now | PASS | `test/accounts.e2e-spec.ts` "persists a withdrawal as a money-withdrawn row with the expected payload" | Deposit payload not separately asserted |
 | TC-REG-007 | Cross-cutting | Money values reject non-integers | Withdraw `10.5` | `POST /accounts/A/withdrawals` with `10.5` | Over HTTP, rejected with 400 by request validation. At the aggregate level, `withdraw(10.5)` throws `InvalidAmountError` and emits no events | CONFIRMED (existing) | Run now | PASS | `accounts.http.spec.ts` "rejects invalid withdrawal body {"amountMinor":10.5,...} (400)"; `account.aggregate.spec.ts` "rejects amount 10.5 without emitting events" | Mapped to assertions |
-| TC-REG-008 | Cross-cutting | Raw event history endpoint returns stream order | `A` with events | `GET /accounts/A/events` | Response in stream order | CONFIRMED (existing) | Run now | PASS | `accounts.http.spec.ts` "returns the event history in stream order" | **Partially verified:** asserts stream order only. The test calls the route without credentials; it must be updated when SEC-01 restricts the route (2c item 4). |
+| TC-REG-008 | Cross-cutting | Raw event history endpoint returns stream order | `A` with events | `GET /accounts/A/events` | Response in stream order | CONFIRMED (existing) | Run now | PASS | `accounts.http.spec.ts` "returns the event history in stream order" | **Updated for SEC-01:** asserts stream order only. The test now sends an internal-role token. Refusal cases are in `accounts.auth.http.spec.ts`. |
 | TC-REG-009 | Cross-cutting | Lint, typecheck, and build pass | Current codebase | `npm run lint`, `npm run typecheck`, `npm run build` | All pass | CONFIRMED (existing) | Run now | PASS | `npm run lint` exit 0; `npm run typecheck` exit 0; `npm run build` exit 0 | Command-level results |
 | TC-REG-010 | Cross-cutting | Error codes mapped only in `DomainExceptionFilter` | New code added | Code review and search for new error mappings | No mapping outside the filter | CONFIRMED (existing rule) | Run after build | NOT RUN | — | No new code yet |
 | TC-REG-011 | Cross-cutting | Money stored as integer minor units in new paths | New read paths | Inspect returned amounts | All amounts are integers | CONFIRMED (existing rule) | Run after build | NOT RUN | — | No new read paths yet |
@@ -164,9 +167,9 @@ These protect existing behavior from the spec's section 4.1. They run against th
 | WH-02 | 13 | 11 | 1 | 0 | 0 | 1 | 0 |
 | WH-03 | 10 | 7 | 2 | 0 | 0 | 1 | 0 |
 | WH-04 | 11 | 4 | 2 | 0 | 4 | 1 | 0 |
-| SEC-01 | 3 | 3 | 0 | 0 | 0 | 0 | 0 |
+| SEC-01 | 6 | 3 | 0 | 3 | 0 | 0 | 0 |
 | Regression | 11 | 11 | 0 | 0 | 0 | 0 | 0 |
-| **Total** | **74** | **54** | **8** | **1** | **4** | **5** | **2** |
+| **Total** | **77** | **54** | **8** | **4** | **4** | **5** | **2** |
 
 Each case has one planning label. The label for each case is the one in its row; the summary above counts those labels. Labels describe requirement status. Cases with ENG PROPOSAL in the Notes column mean the HTTP status is client-decided and the error code is not.
 
@@ -176,21 +179,23 @@ Each case has one planning label. The label for each case is the one in its row;
 
 ## Execution results (step 2 and round 2)
 
-Counts reconcile to 74. Retired cases are not counted as pass or fail. Round 2 cases have not been executed.
+Counts reconcile to 77. Retired cases are not counted as pass or fail. Round 2 cases have not been executed.
 
 | Result | Regression | WH-01 | WH-02 | WH-03 | WH-04 | SEC-01 | Total |
 |---|---|---|---|---|---|---|---|
-| PASS | 9 | 0 | 0 | 0 | 0 | 0 | **9** |
+| PASS | 9 | 0 | 0 | 0 | 0 | 6 | **15** |
 | FAIL | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
-| BLOCKED | 0 | 3 | 2 | 2 | 11 | 3 | **21** |
+| BLOCKED | 0 | 3 | 2 | 2 | 11 | 0 | **18** |
 | NOT RUN | 2 | 21 | 11 | 8 | 0 | 0 | **42** |
 | RETIRED | 0 | 2 | 0 | 0 | 0 | 0 | **2** |
-| **Total** | **11** | **26** | **13** | **10** | **11** | **3** | **74** |
+| **Total** | **11** | **26** | **13** | **10** | **11** | **6** | **77** |
 
 **Mapping limits (not independently verified):**
 - TC-REG-008 asserts stream order only. "Unchanged from baseline" has no stored snapshot to compare against.
 - TC-REG-006 checks event names and the withdrawal payload. The deposit and account-opened payloads are not separately asserted.
 - TC-REG-009 is a command-level result (exit codes), not a per-rule check.
+- The HTTP 403 path has no test of its own, because only one role is on the allow-list. The 403 header check is at filter level (TC-SEC-006).
+- TC-SEC-005 covers the production wiring with a fixed test key for the valid case, so key ownership and rotation are not tested.
 - TC-WH01-015 and TC-WH02-006 expect 400 with `INVALID_ID`. The current `:id` routes use `ParseUUIDPipe` and return 400 with no `code` field.
 
 ## Unresolved decisions that block tests

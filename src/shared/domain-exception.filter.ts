@@ -2,7 +2,16 @@ import { type ArgumentsHost, Catch, HttpStatus } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { EventSourcingErrorCode, isEventSourcingError } from '@ocoda/event-sourcing';
 import type { Response } from 'express';
-import { DomainError, type DomainErrorCode } from './domain-errors.js';
+import { JWT_REALM } from '../auth/jwt-options.js';
+import {
+  DomainError,
+  type DomainErrorCode,
+  UnauthenticatedError,
+} from './domain-errors.js';
+
+/* Challenges for 401 responses (RFC 6750). Only the HTTP layer knows these. */
+const PLAIN_CHALLENGE = `Bearer realm="${JWT_REALM}"`;
+const INVALID_TOKEN_CHALLENGE = `${PLAIN_CHALLENGE}, error="invalid_token"`;
 
 const STATUS_BY_CODE: Record<DomainErrorCode, HttpStatus> = {
   INVALID_AMOUNT: HttpStatus.BAD_REQUEST,
@@ -18,6 +27,8 @@ const STATUS_BY_CODE: Record<DomainErrorCode, HttpStatus> = {
   INVALID_DATE: HttpStatus.BAD_REQUEST,
   FUTURE_DATE: HttpStatus.BAD_REQUEST,
   INVALID_PAGE_SIZE: HttpStatus.BAD_REQUEST,
+  UNAUTHENTICATED: HttpStatus.UNAUTHORIZED,
+  FORBIDDEN: HttpStatus.FORBIDDEN,
 };
 
 /**
@@ -30,6 +41,12 @@ export class DomainExceptionFilter extends BaseExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
 
     if (error instanceof DomainError) {
+      if (error instanceof UnauthenticatedError) {
+        response.setHeader(
+          'WWW-Authenticate',
+          error.invalidToken ? INVALID_TOKEN_CHALLENGE : PLAIN_CHALLENGE,
+        );
+      }
       const status = STATUS_BY_CODE[error.code];
       response
         .status(status)
