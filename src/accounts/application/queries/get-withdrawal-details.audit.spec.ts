@@ -1,4 +1,9 @@
-import type { EventEnvelope, EventStore } from '@ocoda/event-sourcing';
+import {
+  EventSourcingErrorCode,
+  isEventSourcingError,
+  type EventEnvelope,
+  type EventStore,
+} from '@ocoda/event-sourcing';
 import { AuditWriter } from '../../../audit/audit-writer.js';
 import { InMemoryAuditWriter } from '../../../audit/in-memory-audit-writer.js';
 import { SupportLookupAuditor, type SupportAuditContext } from '../../../audit/support-lookup-auditor.js';
@@ -89,6 +94,26 @@ describe('GetWithdrawalDetailsHandler audit (WH-04)', () => {
     await expect(
       handler.execute(new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1', SUPPORT)),
     ).rejects.toMatchObject({ code: 'AUDIT_UNAVAILABLE' });
+  });
+
+  it('audits a malformed account id as INVALID_ACCOUNT_ID and keeps the 400-mapped error', async () => {
+    const writer = new InMemoryAuditWriter();
+    const handler = new GetWithdrawalDetailsHandler(
+      storeWith([withdrawal]),
+      new SupportLookupAuditor(writer),
+    );
+
+    const failure = await handler
+      .execute(new GetWithdrawalDetailsQuery('not-a-uuid', 'op-1', SUPPORT))
+      .catch((error: unknown) => error);
+
+    expect(isEventSourcingError(failure, EventSourcingErrorCode.InvalidId)).toBe(true);
+    expect(writer.records).toHaveLength(1);
+    expect(writer.records[0]).toMatchObject({
+      outcome: 'rejected',
+      reasonCode: 'INVALID_ACCOUNT_ID',
+      accountId: 'not-a-uuid',
+    });
   });
 
   it('refuses a lookup without an audit context before reading the store', async () => {

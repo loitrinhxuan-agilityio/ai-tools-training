@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EventSourcingErrorCode, isEventSourcingError } from '@ocoda/event-sourcing';
 import {
   AuditUnavailableError,
   DomainError,
@@ -25,10 +26,27 @@ export interface SupportLookupDetails {
 export const READ_FAILED_REASON = 'READ_FAILED';
 
 /**
+ * Reason code for a malformed account id. Not a DomainError, so it is named here.
+ * The HTTP response is still the filter's 400 INVALID_ID.
+ */
+export const INVALID_ACCOUNT_ID_REASON = 'INVALID_ACCOUNT_ID';
+
+/** The audit reason for a failed read: a business rule, a malformed id, or anything else. */
+function reasonFor(error: unknown): string {
+  if (error instanceof DomainError) return error.code;
+  if (isEventSourcingError(error, EventSourcingErrorCode.InvalidId)) {
+    return INVALID_ACCOUNT_ID_REASON;
+  }
+  return READ_FAILED_REASON;
+}
+
+/**
  * Runs one support lookup with fail-closed auditing (WH-04, W3):
  *  - the read runs first;
  *  - a successful read writes a `success` row with its result count, then returns;
  *  - a DomainError (rejected lookup) writes a `rejected` row with its code, then rethrows it;
+ *  - a malformed account id writes a `rejected` row with reason `INVALID_ACCOUNT_ID`,
+ *    then rethrows the id error unchanged (the filter maps it to 400);
  *  - any other read failure (e.g. the event store is down) writes a `rejected` row
  *    with reason `READ_FAILED`, then rethrows it. The outcome set stays as approved (W2);
  *  - if an audit write fails, the caller gets AuditUnavailableError and no data.
@@ -51,8 +69,7 @@ export class SupportLookupAuditor {
     try {
       value = await read();
     } catch (error) {
-      const reason = error instanceof DomainError ? error.code : READ_FAILED_REASON;
-      await this.record(context, details, 'rejected', reason, null);
+      await this.record(context, details, 'rejected', reasonFor(error), null);
       throw error;
     }
 

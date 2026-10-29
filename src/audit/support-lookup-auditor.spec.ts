@@ -1,4 +1,6 @@
+import { EventSourcingErrorCode, isEventSourcingError } from '@ocoda/event-sourcing';
 import { AuditUnavailableError, WithdrawalNotFoundError } from '../shared/domain-errors.js';
+import { AccountId } from '../accounts/domain/account-id.js';
 import type { AuditRecord } from './audit-record.js';
 import { AuditWriter } from './audit-writer.js';
 import { InMemoryAuditWriter } from './in-memory-audit-writer.js';
@@ -109,6 +111,30 @@ describe('SupportLookupAuditor (fail-closed audit, WH-04)', () => {
 
     expect(writer.records).toHaveLength(1);
     expect(writer.records[0]).toMatchObject({ outcome: 'rejected', reasonCode: 'READ_FAILED' });
+  });
+
+  it('records a malformed account id as a validation rejection, not a read failure', async () => {
+    const writer = new InMemoryAuditWriter();
+    const auditor = new SupportLookupAuditor(writer);
+
+    // The real id parser, as the lookup handlers use it. The original error must
+    // reach the exception filter unchanged, so it still maps to 400 INVALID_ID.
+    const failure = await auditor
+      .run(
+        CONTEXT,
+        { ...DETAILS, accountId: 'not-a-uuid' },
+        async () => AccountId.from('not-a-uuid'),
+        () => 1,
+      )
+      .catch((error: unknown) => error);
+    expect(isEventSourcingError(failure, EventSourcingErrorCode.InvalidId)).toBe(true);
+
+    expect(writer.records).toHaveLength(1);
+    expect(writer.records[0]).toMatchObject({
+      outcome: 'rejected',
+      reasonCode: 'INVALID_ACCOUNT_ID',
+      accountId: 'not-a-uuid',
+    });
   });
 
   it('reports AUDIT_UNAVAILABLE when even the READ_FAILED row cannot be written', async () => {
