@@ -24,7 +24,9 @@ export type DomainErrorCode =
   | 'INVALID_DATE_RANGE'
   | 'INVALID_DATE'
   | 'FUTURE_DATE'
-  | 'INVALID_PAGE_SIZE';
+  | 'INVALID_PAGE_SIZE'
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN';
 
 export class InvalidAmountError extends DomainError {
   readonly code = 'INVALID_AMOUNT';
@@ -137,5 +139,26 @@ export class InvalidPageSizeError extends DomainError {
 
   constructor(reason: 'non-numeric' | 'non-integer' | 'non-positive') {
     super(`pageSize is ${reason}`);
+  }
+}
+
+/* Authentication and authorization. Raised by AuthGuard (SEC-01, S5). */
+
+/** No valid bearer token was presented: missing, malformed, expired or wrongly signed. */
+export class UnauthenticatedError extends DomainError {
+  readonly code = 'UNAUTHENTICATED';
+
+  /** True when a token was presented but refused; false when none was presented. */
+  constructor(readonly invalidToken: boolean) {
+    super('Authentication required');
+  }
+}
+
+/** The caller is authenticated but lacks the role this route requires. */
+export class ForbiddenError extends DomainError {
+  readonly code = 'FORBIDDEN';
+
+  constructor() {
+    super('Insufficient permissions');
   }
 }

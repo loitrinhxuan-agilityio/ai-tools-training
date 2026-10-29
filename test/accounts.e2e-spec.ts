@@ -5,6 +5,9 @@ import request from 'supertest';
 import { vi } from 'vitest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
+import { AuthModule } from '../src/auth/auth.module.js';
+import { INTERNAL_SUPPORT_ROLE } from '../src/auth/roles.js';
+import { TEST_JWT_SECRET, signTestToken } from './support/test-tokens.js';
 import { AccountId } from '../src/accounts/domain/account-id.js';
 import { AccountRepository } from '../src/accounts/infrastructure/account.repository.js';
 import { loadConfig } from '../src/config/env.js';
@@ -20,7 +23,12 @@ describe('Accounts with the Postgres event store', () => {
 
   async function startApp(): Promise<INestApplication<App>> {
     const moduleRef = await Test.createTestingModule({
-      imports: [AppModule.register()],
+      imports: [
+        AppModule.register(
+          AppModule.postgresEventSourcing(),
+          AuthModule.forSecret(TEST_JWT_SECRET),
+        ),
+      ],
     }).compile();
     const instance = moduleRef.createNestApplication<INestApplication<App>>();
     await instance.init();
@@ -37,7 +45,14 @@ describe('Accounts with the Postgres event store', () => {
     await db?.end();
   });
 
-  const http = () => request(app.getHttpServer());
+  const token = signTestToken({ role: INTERNAL_SUPPORT_ROLE });
+  const http = () => {
+    const agent = request(app.getHttpServer());
+    return {
+      get: (url: string) => agent.get(url).set('Authorization', `Bearer ${token}`),
+      post: (url: string) => agent.post(url).set('Authorization', `Bearer ${token}`),
+    };
+  };
 
   async function openAndDeposit(amountMinor: number): Promise<string> {
     const opened = await http().post('/accounts').send({ ownerName: 'Ada' }).expect(201);
@@ -48,6 +63,21 @@ describe('Accounts with the Postgres event store', () => {
       .expect(200);
     return accountId;
   }
+
+  it('a refused account opening persists no row', async () => {
+    const countRows = async () => {
+      const { rows } = await db.query<{ n: number }>('SELECT count(*)::int AS n FROM events');
+      return rows[0].n;
+    };
+    const before = await countRows();
+
+    await request(app.getHttpServer())
+      .post('/accounts')
+      .send({ ownerName: 'Grace' })
+      .expect(401);
+
+    expect(await countRows()).toBe(before);
+  });
 
   it('persists each event as one row in the account stream', async () => {
     const accountId = await openAndDeposit(1050);

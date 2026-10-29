@@ -6,6 +6,8 @@ import {
   EventStore,
 } from '@ocoda/event-sourcing';
 import { AppModule } from '../../../app.module.js';
+import { AuthModule } from '../../../auth/auth.module.js';
+import { TEST_JWT_SECRET } from '../../../../test/support/test-tokens.js';
 import {
   AccountNotFoundError,
   InsufficientFundsError,
@@ -472,7 +474,12 @@ describe('GetWithdrawalHistoryHandler with the in-memory event store and real co
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [AppModule.register(EventSourcingModule.forRoot({}))],
+      imports: [
+        AppModule.register(
+          EventSourcingModule.forRoot({}),
+          AuthModule.forSecret(TEST_JWT_SECRET),
+        ),
+      ],
     }).compile();
     app = moduleRef.createNestApplication();
     await app.init();

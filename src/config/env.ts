@@ -22,6 +22,34 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return { databaseUrl, port };
 }
 
+/**
+ * Reads the key that signs and verifies bearer tokens. It is read when the
+ * app starts, not when this module loads. HS256 needs a key of at least 32
+ * characters.
+ */
+export function loadJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not set. Set it in .env (see .env.example).');
+  }
+  if (secret.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters.');
+  }
+  if (KNOWN_TEST_SECRETS.includes(secret)) {
+    throw new Error('JWT_SECRET is a known test key and cannot be used.');
+  }
+  if (new Set(secret).size < 16) {
+    throw new Error('JWT_SECRET must use at least 16 different characters.');
+  }
+  return secret;
+}
+
+/**
+ * Test-only keys, which are public in the repository. The value must match
+ * TEST_JWT_SECRET in test/support/test-tokens.ts.
+ */
+const KNOWN_TEST_SECRETS = ['test-only-key-not-for-deployment-0123456789abcdef'];
+
 export function loadDotEnvIfPresent(path = '.env'): void {
   try {
     process.loadEnvFile(path);

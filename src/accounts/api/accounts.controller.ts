@@ -8,6 +8,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@ocoda/event-sourcing';
+import { RequireRole } from '../../auth/require-role.decorator.js';
+import { INTERNAL_SUPPORT_ROLE } from '../../auth/roles.js';
 import {
   DepositMoneyCommand,
   type DepositMoneyResult,
@@ -91,6 +93,7 @@ export class AccountsController {
   }
 
   @Get(':id/events')
+  @RequireRole(INTERNAL_SUPPORT_ROLE)
   getEvents(
     @Param('id', ParseUUIDPipe) accountId: string,
   ): Promise<AccountEventDto[]> {
