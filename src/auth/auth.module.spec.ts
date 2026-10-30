@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import { EventSourcingModule } from '@ocoda/event-sourcing';
 import request from 'supertest';
 import { AppModule } from '../app.module.js';
+import { AuditModule } from '../audit/audit.module.js';
+import { InMemoryAuditWriter } from '../audit/in-memory-audit-writer.js';
 import { signTestToken, TEST_JWT_SECRET } from '../../test/support/test-tokens.js';
 import { INTERNAL_SUPPORT_ROLE } from './roles.js';
 
@@ -21,7 +23,13 @@ describe('AuthModule production wiring (JWT_SECRET)', () => {
 
   async function start() {
     const moduleRef = await Test.createTestingModule({
-      imports: [AppModule.register(EventSourcingModule.forRoot({}))],
+      imports: [
+        AppModule.register(
+          EventSourcingModule.forRoot({}),
+          undefined,
+          AuditModule.forWriter(new InMemoryAuditWriter()),
+        ),
+      ],
     }).compile();
     const app = moduleRef.createNestApplication();
     await app.init();

@@ -4,6 +4,8 @@ import { EventSourcingModule, EventStore } from '@ocoda/event-sourcing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../app.module.js';
+import { AuditModule } from '../audit/audit.module.js';
+import { InMemoryAuditWriter } from '../audit/in-memory-audit-writer.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { JWT_AUDIENCE, JWT_ISSUER, JWT_REALM } from '../auth/jwt-options.js';
 import { INTERNAL_SUPPORT_ROLE } from '../auth/roles.js';
@@ -31,6 +33,7 @@ describe('Accounts HTTP access control', () => {
         AppModule.register(
           EventSourcingModule.forRoot({}),
           AuthModule.forSecret(TEST_JWT_SECRET),
+          AuditModule.forWriter(new InMemoryAuditWriter()),
         ),
       ],
     }).compile();

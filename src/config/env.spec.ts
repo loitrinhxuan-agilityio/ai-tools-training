@@ -1,5 +1,42 @@
 import { TEST_JWT_SECRET } from '../../test/support/test-tokens.js';
-import { loadJwtSecret } from './env.js';
+import { loadAuditWriteTimeoutMs, loadJwtSecret } from './env.js';
+
+describe('loadAuditWriteTimeoutMs', () => {
+  it('defaults to 2000 ms when unset', () => {
+    expect(loadAuditWriteTimeoutMs({})).toBe(2000);
+  });
+
+  it('reads a positive integer', () => {
+    expect(loadAuditWriteTimeoutMs({ AUDIT_WRITE_TIMEOUT_MS: '750' })).toBe(750);
+  });
+
+  it('accepts the upper bound of 60000', () => {
+    expect(loadAuditWriteTimeoutMs({ AUDIT_WRITE_TIMEOUT_MS: '60000' })).toBe(60000);
+  });
+
+  it.each(['0', '-5', '1.5', '1e3', '0x7d0', ' 750', 'soon', '', '60001', '3000000000'])(
+    'refuses %j',
+    (value) => {
+      expect(() => loadAuditWriteTimeoutMs({ AUDIT_WRITE_TIMEOUT_MS: value })).toThrow(
+        /AUDIT_WRITE_TIMEOUT_MS must be an integer from 1 to 60000/,
+      );
+    },
+  );
+});
+
+describe('loadAuditWriteTimeoutMs error message', () => {
+  it('does not echo the rejected environment value', () => {
+    const pasted = 'hunter2-wrong-variable';
+    let message = '';
+    try {
+      loadAuditWriteTimeoutMs({ AUDIT_WRITE_TIMEOUT_MS: pasted });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/AUDIT_WRITE_TIMEOUT_MS must be an integer from 1 to 60000/);
+    expect(message).not.toContain(pasted);
+  });
+});
 
 describe('loadJwtSecret', () => {
   it('returns the secret from JWT_SECRET', () => {

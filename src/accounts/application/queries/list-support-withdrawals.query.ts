@@ -5,10 +5,15 @@ import {
   type IQueryHandler,
 } from '@ocoda/event-sourcing';
 import {
+  SupportLookupAuditor,
+  type SupportAuditContext,
+} from '../../../audit/support-lookup-auditor.js';
+import {
   FutureDateError,
   InvalidDateError,
   InvalidDateRangeError,
   InvalidPageSizeError,
+  MissingAuditContextError,
   type DomainError,
 } from '../../../shared/domain-errors.js';
 import {
@@ -29,6 +34,11 @@ import {
 export class ListSupportWithdrawalsQuery extends Query<WithdrawalHistoryPage> {
   constructor(
     public readonly accountId: string,
+    /**
+     * Who is looking up, with the case ID and note. Recorded in the audit row.
+     * Declared before the optional values so that it cannot be left out.
+     */
+    public readonly audit: SupportAuditContext,
     public readonly from?: string,
     public readonly to?: string,
     public readonly pageSize?: string | number,
@@ -57,6 +67,12 @@ export interface SupportWithdrawalLookupOptions {
   maxPageSize: number;
 }
 
+/** The lookup parameters, taken from the query type so the two cannot drift apart. */
+type LookupParams = Pick<
+  ListSupportWithdrawalsQuery,
+  'accountId' | 'from' | 'to' | 'pageSize' | 'beforeVersion' | 'afterVersion'
+>;
+
 /** Maps a date failure to the codes approved at gate G3. */
 function toDomainError(failure: DateRangeFailure): DomainError {
   if (failure.reason === 'reversed' || failure.field === undefined) {
@@ -74,8 +90,9 @@ function toDomainError(failure: DateRangeFailure): DomainError {
  * read, so the scan logic is not duplicated.
  *
  * Not registered in any module and not exposed by a route. The route, the
- * required case ID, authentication, authorization and audit are blocked
- * (WH-03, WH-04, SEC-01).
+ * required case ID, authentication, and authorization are blocked (WH-03,
+ * SEC-01). Every attempt is audited and fails closed (WH-04): a rejected
+ * request is recorded as `rejected`, and no data is returned without a record.
  */
 @QueryHandler(ListSupportWithdrawalsQuery)
 export class ListSupportWithdrawalsHandler implements IQueryHandler<ListSupportWithdrawalsQuery> {
@@ -84,18 +101,36 @@ export class ListSupportWithdrawalsHandler implements IQueryHandler<ListSupportW
   constructor(
     eventStore: EventStore,
     private readonly options: SupportWithdrawalLookupOptions,
+    private readonly auditor: SupportLookupAuditor,
   ) {
     this.history = new GetWithdrawalHistoryHandler(eventStore);
   }
 
-  async execute({
+  async execute(query: ListSupportWithdrawalsQuery): Promise<WithdrawalHistoryPage> {
+    const { accountId, from, to, pageSize, beforeVersion, afterVersion, audit } =
+      query;
+    // Without a caller, no read may proceed: a lookup must always be audited.
+    if (!audit) throw new MissingAuditContextError();
+    return this.auditor.run(
+      audit,
+      {
+        accountId,
+        action: 'withdrawal-lookup-by-range',
+        query: { from, to, pageSize, beforeVersion, afterVersion },
+      },
+      () => this.read(query),
+      (page) => page.items.length,
+    );
+  }
+
+  private async read({
     accountId,
     from,
     to,
     pageSize,
     beforeVersion,
     afterVersion,
-  }: ListSupportWithdrawalsQuery): Promise<WithdrawalHistoryPage> {
+  }: LookupParams): Promise<WithdrawalHistoryPage> {
     const range = resolveDateRange(
       { from, to },
       {

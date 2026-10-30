@@ -1,6 +1,10 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { DomainExceptionFilter } from './domain-exception.filter.js';
-import { ForbiddenError, UnauthenticatedError } from './domain-errors.js';
+import {
+  AuditUnavailableError,
+  ForbiddenError,
+  UnauthenticatedError,
+} from './domain-errors.js';
 
 /*
  * The 403 path must not carry a WWW-Authenticate challenge (RFC 6750 applies
@@ -42,5 +46,13 @@ describe('DomainExceptionFilter authentication responses', () => {
     const response = run(new ForbiddenError());
     expect(response.status).toHaveBeenCalledWith(403);
     expect(response.setHeader).not.toHaveBeenCalled();
+  });
+
+  it('maps AUDIT_UNAVAILABLE to 503 with its stable code', () => {
+    const response = run(new AuditUnavailableError());
+    expect(response.status).toHaveBeenCalledWith(503);
+    expect(response.json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 503, code: 'AUDIT_UNAVAILABLE' }),
+    );
   });
 });

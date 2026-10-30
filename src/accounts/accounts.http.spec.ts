@@ -4,6 +4,8 @@ import { EventSourcingModule } from '@ocoda/event-sourcing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../app.module.js';
+import { AuditModule } from '../audit/audit.module.js';
+import { InMemoryAuditWriter } from '../audit/in-memory-audit-writer.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { INTERNAL_SUPPORT_ROLE } from '../auth/roles.js';
 import { TEST_JWT_SECRET, signTestToken } from '../../test/support/test-tokens.js';
@@ -23,6 +25,7 @@ describe('Accounts HTTP flow (in-memory event store)', () => {
         AppModule.register(
           EventSourcingModule.forRoot({}),
           AuthModule.forSecret(TEST_JWT_SECRET),
+          AuditModule.forWriter(new InMemoryAuditWriter()),
         ),
       ],
     }).compile();

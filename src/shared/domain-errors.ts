@@ -26,7 +26,9 @@ export type DomainErrorCode =
   | 'FUTURE_DATE'
   | 'INVALID_PAGE_SIZE'
   | 'UNAUTHENTICATED'
-  | 'FORBIDDEN';
+  | 'FORBIDDEN'
+  | 'AUDIT_UNAVAILABLE'
+  | 'AUDIT_CONTEXT_MISSING';
 
 export class InvalidAmountError extends DomainError {
   readonly code = 'INVALID_AMOUNT';
@@ -160,5 +162,33 @@ export class ForbiddenError extends DomainError {
 
   constructor() {
     super('Insufficient permissions');
+  }
+}
+
+/*
+ * Audit (WH-04, approved W3/W7). A read is blocked when its audit record cannot
+ * be written, so no data is returned without a record.
+ */
+
+/** The audit write failed or timed out. Data is withheld. */
+export class AuditUnavailableError extends DomainError {
+  readonly code = 'AUDIT_UNAVAILABLE';
+
+  constructor() {
+    super('Audit recording is unavailable; the request was not completed');
+  }
+}
+
+/**
+ * An audited lookup was dispatched without a caller. A wiring mistake rather
+ * than a client error, so it maps to 500; the read is refused either way,
+ * because a lookup that cannot be attributed must not run. The message is
+ * fixed and names no internal class, since the filter returns it to clients.
+ */
+export class MissingAuditContextError extends DomainError {
+  readonly code = 'AUDIT_CONTEXT_MISSING';
+
+  constructor() {
+    super('An audit context is required for this lookup');
   }
 }
