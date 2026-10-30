@@ -27,7 +27,8 @@ export type DomainErrorCode =
   | 'INVALID_PAGE_SIZE'
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
-  | 'AUDIT_UNAVAILABLE';
+  | 'AUDIT_UNAVAILABLE'
+  | 'AUDIT_CONTEXT_MISSING';
 
 export class InvalidAmountError extends DomainError {
   readonly code = 'INVALID_AMOUNT';
@@ -175,5 +176,19 @@ export class AuditUnavailableError extends DomainError {
 
   constructor() {
     super('Audit recording is unavailable; the request was not completed');
+  }
+}
+
+/**
+ * An audited lookup was dispatched without a caller. A wiring mistake rather
+ * than a client error, so it maps to 500; the read is refused either way,
+ * because a lookup that cannot be attributed must not run. The message is
+ * fixed and names no internal class, since the filter returns it to clients.
+ */
+export class MissingAuditContextError extends DomainError {
+  readonly code = 'AUDIT_CONTEXT_MISSING';
+
+  constructor() {
+    super('An audit context is required for this lookup');
   }
 }

@@ -13,6 +13,7 @@ import {
   InvalidDateError,
   InvalidDateRangeError,
   InvalidPageSizeError,
+  MissingAuditContextError,
   type DomainError,
 } from '../../../shared/domain-errors.js';
 import {
@@ -33,13 +34,16 @@ import {
 export class ListSupportWithdrawalsQuery extends Query<WithdrawalHistoryPage> {
   constructor(
     public readonly accountId: string,
+    /**
+     * Who is looking up, with the case ID and note. Recorded in the audit row.
+     * Declared before the optional values so that it cannot be left out.
+     */
+    public readonly audit: SupportAuditContext,
     public readonly from?: string,
     public readonly to?: string,
     public readonly pageSize?: string | number,
     public readonly beforeVersion?: number | null,
     public readonly afterVersion?: number | null,
-    /** Who is looking up, with the case ID and note. Recorded in the audit row. */
-    public readonly audit?: SupportAuditContext,
   ) {
     super();
   }
@@ -106,7 +110,7 @@ export class ListSupportWithdrawalsHandler implements IQueryHandler<ListSupportW
     const { accountId, from, to, pageSize, beforeVersion, afterVersion, audit } =
       query;
     // Without a caller, no read may proceed: a lookup must always be audited.
-    if (!audit) throw new Error('ListSupportWithdrawalsQuery requires an audit context');
+    if (!audit) throw new MissingAuditContextError();
     return this.auditor.run(
       audit,
       {

@@ -9,6 +9,7 @@ import {
   ListSupportWithdrawalsQuery,
   type SupportWithdrawalLookupOptions,
 } from './list-support-withdrawals.query.js';
+import { MissingAuditContextError } from '../../../shared/domain-errors.js';
 import { AccountId } from '../../domain/account-id.js';
 
 const SUPPORT: SupportAuditContext = { actorId: 'staff-1', caseId: 'CASE-1', note: null };
@@ -101,7 +102,7 @@ const lookup = (
   options: SupportWithdrawalLookupOptions = OPTIONS,
 ) =>
   new ListSupportWithdrawalsHandler(storeWith(envelopes), options, AUDITOR).execute(
-    new ListSupportWithdrawalsQuery(ACCOUNT_ID, from, to, pageSize, beforeVersion, undefined, SUPPORT),
+    new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, from, to, pageSize, beforeVersion),
   );
 
 const operationIds = (items: { operationId: string }[]) =>
@@ -226,7 +227,7 @@ describe('ListSupportWithdrawalsHandler', () => {
     it('rejects from after to without reading the store', async () => {
       await expect(
         new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, '2026-10-20', '2026-10-10', undefined, undefined, undefined, SUPPORT),
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, '2026-10-20', '2026-10-10'),
         ),
       ).rejects.toMatchObject({ code: 'INVALID_DATE_RANGE' });
     });
@@ -235,7 +236,7 @@ describe('ListSupportWithdrawalsHandler', () => {
     it('rejects a malformed date and names the field', async () => {
       await expect(
         new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, 'not-a-date', undefined, undefined, undefined, undefined, SUPPORT),
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, 'not-a-date'),
         ),
       ).rejects.toMatchObject({
         code: 'INVALID_DATE',
@@ -246,7 +247,7 @@ describe('ListSupportWithdrawalsHandler', () => {
     it('rejects a timestamp without a timezone', async () => {
       await expect(
         new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, '2026-10-20T09:30:00', undefined, undefined, undefined, SUPPORT),
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, undefined, '2026-10-20T09:30:00'),
         ),
       ).rejects.toMatchObject({
         code: 'INVALID_DATE',
@@ -257,7 +258,7 @@ describe('ListSupportWithdrawalsHandler', () => {
     it('rejects a future from', async () => {
       await expect(
         new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, '2026-10-28T12:00:00.001Z', undefined, undefined, undefined, undefined, SUPPORT),
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, '2026-10-28T12:00:00.001Z'),
         ),
       ).rejects.toMatchObject({ code: 'FUTURE_DATE' });
     });
@@ -265,7 +266,7 @@ describe('ListSupportWithdrawalsHandler', () => {
     it('rejects a future to', async () => {
       await expect(
         new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
-          new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, '2026-10-29', undefined, undefined, undefined, SUPPORT),
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, undefined, '2026-10-29'),
         ),
       ).rejects.toMatchObject({ code: 'FUTURE_DATE' });
     });
@@ -374,7 +375,7 @@ describe('ListSupportWithdrawalsHandler', () => {
       async (_, raw) => {
         await expect(
           new ListSupportWithdrawalsHandler(storeMustNotBeRead, OPTIONS, AUDITOR).execute(
-            new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined, undefined, raw, undefined, undefined, SUPPORT),
+            new ListSupportWithdrawalsQuery(ACCOUNT_ID, SUPPORT, undefined, undefined, raw),
           ),
         ).rejects.toMatchObject({ code: 'INVALID_PAGE_SIZE' });
       },
@@ -421,6 +422,30 @@ describe('ListSupportWithdrawalsHandler', () => {
       ]);
 
       expect(page.items).toEqual([]);
+    });
+  });
+
+  describe('audit context', () => {
+    it('cannot be left out of the query type', () => {
+      // @ts-expect-error audit is a required argument
+      void new ListSupportWithdrawalsQuery(ACCOUNT_ID);
+    });
+
+    it('refuses a lookup without one, with a stable code, before reading the store', async () => {
+      const failure = await new ListSupportWithdrawalsHandler(
+        storeMustNotBeRead,
+        OPTIONS,
+        AUDITOR,
+      )
+        .execute(
+          new ListSupportWithdrawalsQuery(ACCOUNT_ID, undefined as unknown as SupportAuditContext),
+        )
+        .catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(MissingAuditContextError);
+      expect(failure).toMatchObject({ code: 'AUDIT_CONTEXT_MISSING' });
+      // The message reaches clients through the filter, so it names no internal class.
+      expect((failure as Error).message).not.toMatch(/Query/);
     });
   });
 });

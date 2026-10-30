@@ -24,6 +24,20 @@ describe('loadAuditWriteTimeoutMs', () => {
   );
 });
 
+describe('loadAuditWriteTimeoutMs error message', () => {
+  it('does not echo the rejected environment value', () => {
+    const pasted = 'hunter2-wrong-variable';
+    let message = '';
+    try {
+      loadAuditWriteTimeoutMs({ AUDIT_WRITE_TIMEOUT_MS: pasted });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/AUDIT_WRITE_TIMEOUT_MS must be an integer from 1 to 60000/);
+    expect(message).not.toContain(pasted);
+  });
+});
+
 describe('loadJwtSecret', () => {
   it('returns the secret from JWT_SECRET', () => {
     const varied = 'abcdefghijklmnopqrstuvwxyz012345';

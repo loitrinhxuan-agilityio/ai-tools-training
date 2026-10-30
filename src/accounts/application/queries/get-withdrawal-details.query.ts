@@ -11,6 +11,7 @@ import {
 } from '../../../audit/support-lookup-auditor.js';
 import {
   AccountNotFoundError,
+  MissingAuditContextError,
   WithdrawalNotFoundError,
 } from '../../../shared/domain-errors.js';
 import { AccountId } from '../../domain/account-id.js';
@@ -66,7 +67,7 @@ export class GetWithdrawalDetailsHandler implements IQueryHandler<GetWithdrawalD
 
   async execute(query: GetWithdrawalDetailsQuery): Promise<WithdrawalDetailsDto> {
     // Without a caller, no read may proceed: a lookup must always be audited.
-    if (!query.audit) throw new Error('GetWithdrawalDetailsQuery requires an audit context');
+    if (!query.audit) throw new MissingAuditContextError();
     return this.auditor.run(
       query.audit,
       {

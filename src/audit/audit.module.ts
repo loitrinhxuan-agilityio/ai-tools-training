@@ -24,11 +24,22 @@ export class AuditModule {
     return AuditModule.build({ provide: AuditWriter, useValue: writer });
   }
 
+  /*
+   * Global, because the audited handlers live in AccountsModule while the
+   * module itself is chosen by AppModule.register. This is how Ocoda's own
+   * EventSourcingModule.forRoot reaches those handlers too. Importing it again
+   * from AccountsModule instead would build a second writer (a second pool) and
+   * would bypass the `forWriter` writer the HTTP specs pass in.
+   *
+   * Only the auditor is exported. The writer stays internal, so no other module
+   * can append audit rows without going through the fail-closed auditor.
+   */
   private static build(writerProvider: Provider): DynamicModule {
     return {
       module: AuditModule,
+      global: true,
       providers: [writerProvider, SupportLookupAuditor, AuditTableInitializer],
-      exports: [AuditWriter, SupportLookupAuditor],
+      exports: [SupportLookupAuditor],
     };
   }
 }

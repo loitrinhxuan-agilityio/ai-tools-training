@@ -54,8 +54,10 @@ const DEFAULT_AUDIT_WRITE_TIMEOUT_MS = 2000;
 const MAX_AUDIT_WRITE_TIMEOUT_MS = 60_000;
 
 /**
- * How long one audit write may take before the read it guards fails closed
- * (WH-04, W3). Milliseconds: plain decimal digits from 1 to 60000. Defaults to 2000.
+ * How long one audit write may take, from waiting for a connection to the end of
+ * the INSERT, before the read it guards fails closed (WH-04, W3). Milliseconds:
+ * plain decimal digits from 1 to 60000. Defaults to 2000. It does not bound the
+ * start-up table check, which has its own budget.
  */
 export function loadAuditWriteTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
   const raw = env.AUDIT_WRITE_TIMEOUT_MS;
@@ -66,8 +68,9 @@ export function loadAuditWriteTimeoutMs(env: NodeJS.ProcessEnv = process.env): n
     timeout < 1 ||
     timeout > MAX_AUDIT_WRITE_TIMEOUT_MS
   ) {
+    // The rejected value is not echoed: environment values stay out of logs.
     throw new Error(
-      `AUDIT_WRITE_TIMEOUT_MS must be an integer from 1 to ${MAX_AUDIT_WRITE_TIMEOUT_MS}, got "${raw}"`,
+      `AUDIT_WRITE_TIMEOUT_MS must be an integer from 1 to ${MAX_AUDIT_WRITE_TIMEOUT_MS}`,
     );
   }
   return timeout;

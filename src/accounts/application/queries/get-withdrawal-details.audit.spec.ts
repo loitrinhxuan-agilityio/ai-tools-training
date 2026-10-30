@@ -7,6 +7,7 @@ import {
 import { AuditWriter } from '../../../audit/audit-writer.js';
 import { InMemoryAuditWriter } from '../../../audit/in-memory-audit-writer.js';
 import { SupportLookupAuditor, type SupportAuditContext } from '../../../audit/support-lookup-auditor.js';
+import { MissingAuditContextError } from '../../../shared/domain-errors.js';
 import { AccountId } from '../../domain/account-id.js';
 import {
   GetWithdrawalDetailsHandler,
@@ -127,7 +128,7 @@ describe('GetWithdrawalDetailsHandler audit (WH-04)', () => {
       handler.execute(
         new GetWithdrawalDetailsQuery(ACCOUNT_ID, 'op-1', undefined as unknown as SupportAuditContext),
       ),
-    ).rejects.toThrow(/requires an audit context/);
+    ).rejects.toBeInstanceOf(MissingAuditContextError);
     expect(store.reads).toBe(0);
   });
 });
