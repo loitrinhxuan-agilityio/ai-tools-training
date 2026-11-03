@@ -239,7 +239,6 @@ Their error codes (`WITHDRAWAL_NOT_FOUND`, `INVALID_DATE_RANGE`, `INVALID_DATE`,
 
 ## Open questions and doc/code disagreements
 
-- **`CLAUDE.md` is out of date on validation.** It says unknown properties are "stripped, not rejected". The code sets `forbidNonWhitelisted: true` and a deposits test expects `400` for an extra property. This reference follows the code.
 - **403 is unreachable today.** Only one role is recognized, and unrecognized roles get 401, so `FORBIDDEN` cannot be returned yet.
 - **Existing clients are locked out.** All routes need a token, nothing in this repo issues tokens, and only `INTERNAL_SUPPORT` is accepted.
 - **Not backed by an HTTP test:** `CONCURRENCY_CONFLICT`, `INVALID_AMOUNT` (overflow), `INVALID_OWNER_NAME`, the exact body of the invalid-UUID 400, and operation-type mismatch for `OPERATION_ID_REUSED`.

@@ -23,7 +23,7 @@ Learning project, not production banking. NestJS 12 (ESM), TypeScript, `@ocoda/e
 - Use kebab-case filenames with role suffixes: `.aggregate.ts`, `.events.ts`, `.command.ts`, `.query.ts`, `.repository.ts`, `.controller.ts`, `.module.ts`, `.dto.ts`, `.filter.ts`, `.initializer.ts`, `.spec.ts`, `.http.spec.ts`, `.e2e-spec.ts`. Files without a role suffix (`money.ts`, `domain-errors.ts`, `account-id.ts`) are fine. Relative ESM imports end in `.js`.
 - Declare explicit kebab-case event names with `@Event('...')`; don't derive names from class names.
 - Throw `DomainError` subclasses with stable codes; map them to HTTP responses only in `DomainExceptionFilter`.
-- Validate HTTP DTOs with `class-validator` and the configured global `ValidationPipe` (`whitelist: true`; unknown properties are stripped, not rejected).
+- Validate HTTP DTOs with `class-validator` and the configured global `ValidationPipe` (`whitelist: true`, `forbidNonWhitelisted: true`; unknown properties are rejected with 400, not stripped).
 - Represent money as integer minor units using `src/shared/money.ts`; use `number` with `Number.isSafeInteger`, never floating-point arithmetic.
 - Keep changes focused and copy established patterns before introducing new ones.
 
